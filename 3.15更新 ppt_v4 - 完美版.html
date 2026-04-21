@@ -1,0 +1,2767 @@
+<!DOCTYPE html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>营服 PPT 批量生成</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #fdf6f9; --bg2: #f8f0f5; --surface: #ffffff; --surface2: #fef9fc;
+            --border: rgba(220,180,210,0.35); --border-med: rgba(200,155,195,0.45); --border-dark: rgba(180,130,175,0.6);
+            --pink: #f4a7c3; --pink-deep: #e87dac; --pink-light: #fde8f1; --pink-glow: rgba(244,167,195,0.18); --pink-shadow: rgba(232,125,172,0.22);
+            --blue: #a8c8f0; --blue-deep: #6fa8e8; --blue-light: #e8f3fd; --blue-glow: rgba(168,200,240,0.2);
+            --purple: #c9b3e8; --purple-light: #f0eafc;
+            --green: #8ed8c0; --green-deep: #5bbfa0; --green-light: #e4f7f1;
+            --amber: #f5c56a; --red: #f4958a;
+            --text: #4a3550; --text2: #8a6a90; --text3: #c0a0c8; --text4: #dfc0e8;
+            --radius: 14px; --radius-lg: 20px; --radius-xl: 28px;
+            --orange: #f5a55a; --orange-light: #fef0e4; --orange-deep: #e07a2a;
+            --sidebar-w: 320px;
+            --header-h: 52px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ── HEADER ── */
+        header {
+            background: var(--surface); border-bottom: 1.5px solid var(--border);
+            padding: 0 22px; height: var(--header-h); display: flex; align-items: center;
+            justify-content: space-between; flex-shrink: 0; z-index: 10;
+            box-shadow: 0 2px 12px rgba(220,150,195,0.1);
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-gem {
+            width: 30px; height: 30px;
+            background: linear-gradient(135deg, var(--pink) 0%, var(--blue) 100%);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 15px; box-shadow: 0 3px 10px var(--pink-shadow);
+        }
+        .logo-name { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -0.2px; }
+        .logo-ver {
+            font-family: 'Fira Code', monospace; font-size: 9.5px; color: var(--text3);
+            background: var(--pink-light); border: 1px solid var(--border); border-radius: 5px; padding: 1.5px 6px;
+        }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--bg2); border: 1.5px solid var(--border); border-radius: 20px;
+            padding: 4px 12px; font-size: 11px; color: var(--text2); font-weight: 700;
+            transition: all .3s ease;
+        }
+        .status-pill.ready  { border-color: rgba(94,191,160,.5); color: var(--green-deep); background: var(--green-light); }
+        .status-pill.loading{ border-color: rgba(245,197,106,.5); color: #c9922a; background: #fef8e8; }
+        .status-pill.failed { border-color: rgba(244,149,138,.5); color: #d94030; background: #fdecea; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+        .dot.pulse { animation: dotpulse 1.4s ease-in-out infinite; }
+        @keyframes dotpulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .btn-ghost {
+            background: var(--pink-light); border: 1.5px solid var(--border-med); border-radius: 10px;
+            padding: 5px 12px; color: var(--text2); font-size: 11.5px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all .18s;
+        }
+        .btn-ghost:hover { background: var(--pink-glow); border-color: var(--pink-deep); color: var(--pink-deep); }
+
+        /* ── LAYOUT ── */
+        .layout { display: flex; flex: 1; overflow: hidden; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar-w); flex-shrink: 0; background: var(--surface);
+            border-right: 1.5px solid var(--border); display: flex; flex-direction: column;
+            overflow: hidden; box-shadow: 2px 0 16px rgba(220,150,195,0.07);
+            transition: width .2s ease;
+        }
+        .sidebar-body {
+            flex: 1; overflow-y: auto; padding: 16px 14px;
+            display: flex; flex-direction: column; gap: 16px;
+            scrollbar-width: thin; scrollbar-color: var(--border-med) transparent;
+        }
+        .sidebar-body::-webkit-scrollbar { width: 4px; }
+        .sidebar-body::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 4px; }
+
+        /* ── SECTION HEADS ── */
+        .sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .sec-num {
+            width: 20px; height: 20px; border-radius: 6px;
+            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            border: 1.5px solid var(--border-med); font-size: 10px; font-weight: 900;
+            color: var(--pink-deep); display: flex; align-items: center; justify-content: center;
+            font-family: 'Fira Code', monospace;
+        }
+        .sec-title { font-size: 10.5px; font-weight: 800; letter-spacing: .8px; color: var(--text2); text-transform: uppercase; }
+
+        /* ── DROPZONE ── */
+        .dropzone {
+            position: relative; border: 2px dashed var(--border-med); border-radius: var(--radius-lg);
+            padding: 20px 14px; text-align: center; cursor: pointer;
+            background: linear-gradient(135deg, var(--pink-light) 0%, var(--blue-light) 100%);
+            transition: all .2s;
+        }
+        .dropzone:hover, .dropzone.drag-over {
+            border-color: var(--pink-deep); box-shadow: 0 4px 20px var(--pink-glow);
+            background: linear-gradient(135deg, #fce0ed 0%, #daeeff 100%);
+        }
+        .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .dz-icon { font-size: 24px; margin-bottom: 4px; }
+        .dz-label { font-size: 12.5px; font-weight: 800; color: var(--text); }
+        .dz-sub { font-size: 10.5px; color: var(--text2); margin-top: 3px; font-weight: 600; }
+
+        /* ── FILE TAG ── */
+        .file-tag {
+            background: var(--green-light); border: 1.5px solid rgba(94,191,160,.4);
+            border-radius: var(--radius); padding: 10px 13px; display: none;
+            align-items: center; justify-content: space-between; gap: 10px;
+            animation: fadeIn .3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+        .file-tag-name { font-size: 12px; font-weight: 800; color: var(--green-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .file-tag-sub { font-size: 10px; color: rgba(91,191,160,.75); margin-top: 2px; font-weight: 600; }
+        .file-tag-change {
+            font-size: 10.5px; font-weight: 800; white-space: nowrap; background: none;
+            border: 1.5px solid rgba(91,191,160,.4); border-radius: 7px; padding: 3px 9px;
+            color: var(--green-deep); cursor: pointer; font-family: inherit; transition: all .18s; flex-shrink: 0;
+        }
+        .file-tag-change:hover { background: rgba(94,191,160,.15); }
+
+        /* ── TEXTAREA CARD ── */
+        .ta-card {
+            background: var(--surface2); border: 1.5px solid var(--border);
+            border-radius: var(--radius-lg); overflow: hidden; transition: border-color .2s, box-shadow .2s;
+        }
+        .ta-card:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+        .the-ta {
+            width: 100%; padding: 11px 13px; height: 96px;
+            background: transparent; border: none; outline: none;
+            color: var(--text); font-size: 12.5px; line-height: 1.8;
+            font-family: inherit; resize: none; font-weight: 500;
+        }
+        .the-ta::placeholder { color: var(--text3); }
+        .ta-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 11px; border-top: 1.5px solid var(--border); background: var(--pink-light);
+        }
+        .count-chip {
+            font-family: 'Fira Code', monospace; font-size: 10.5px; font-weight: 600;
+            background: var(--pink-light); color: var(--pink-deep);
+            border: 1px solid var(--border-med); border-radius: 6px; padding: 2px 8px;
+            transition: all .2s;
+        }
+        .count-chip.has-data { background: var(--green-light); color: var(--green-deep); border-color: rgba(94,191,160,.4); }
+        .ocr-btn {
+            display: flex; align-items: center; gap: 5px; background: var(--surface);
+            border: 1.5px solid var(--border-med); border-radius: 7px; padding: 4px 10px;
+            color: var(--text2); font-size: 11px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all .18s;
+        }
+        .ocr-btn:hover { border-color: var(--blue-deep); color: var(--blue-deep); background: var(--blue-light); }
+        .ocr-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+        /* ── BLESSING ── */
+        .blessing-ta {
+            width: 100%; padding: 11px 13px; height: 68px;
+            background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius);
+            color: var(--text); font-size: 12.5px; line-height: 1.8;
+            font-family: inherit; resize: none; outline: none; font-weight: 500;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .blessing-ta:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+        .blessing-ta::placeholder { color: var(--text3); }
+        .hint { font-size: 10.5px; color: var(--text2); margin-top: 5px; font-weight: 600; }
+        .hint em { color: var(--purple); font-style: normal; font-weight: 800; }
+
+        /* ── TOGGLES ── */
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--blue-light); border: 1.5px solid rgba(111,168,232,.3);
+            border-radius: var(--radius); padding: 10px 13px; margin-top: 8px;
+            transition: background .2s, border-color .2s;
+        }
+        .toggle-row:hover { background: #daeeff; border-color: rgba(111,168,232,.5); }
+        .toggle-row.orange-row { background: var(--orange-light); border-color: rgba(245,165,90,.35); }
+        .toggle-row.orange-row:hover { background: #fde8d0; border-color: rgba(245,165,90,.55); }
+        .toggle-lbl { font-size: 12px; font-weight: 700; color: var(--text2); }
+        .toggle-lbl small { display: block; font-size: 10px; color: var(--text3); font-weight: 600; margin-top: 2px; line-height: 1.5; }
+        .sw { position: relative; width: 38px; height: 21px; display: inline-block; flex-shrink: 0; }
+        .sw input { opacity: 0; width: 0; height: 0; }
+        .sw-s {
+            position: absolute; inset: 0; background: var(--border-med);
+            border-radius: 21px; cursor: pointer; transition: .22s;
+        }
+        .sw-s::before {
+            content: ''; position: absolute; width: 15px; height: 15px;
+            left: 3px; top: 3px; background: #fff; border-radius: 50%;
+            transition: .22s; box-shadow: 0 1px 4px rgba(0,0,0,.2);
+        }
+        .sw input:checked + .sw-s { background: linear-gradient(135deg, var(--blue), var(--pink)); }
+        .sw input:checked + .sw-s::before { transform: translateX(17px); }
+        .sw.orange input:checked + .sw-s { background: linear-gradient(135deg, var(--orange), #f5c56a); }
+
+        /* ── SIDEBAR FOOTER ── */
+        .sidebar-footer {
+            padding: 12px 14px; border-top: 1.5px solid var(--border);
+            background: var(--surface); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;
+        }
+        .gs-row {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--purple-light); border: 1.5px solid rgba(201,179,232,.4);
+            border-radius: var(--radius); padding: 8px 13px;
+        }
+        .gs-lbl { font-size: 11.5px; font-weight: 700; color: var(--text2); flex: 1; }
+        .gs-lbl small { display: block; font-size: 10px; color: var(--text3); font-weight: 600; margin-top: 1px; }
+        .gs-ctrl { display: flex; align-items: center; gap: 6px; }
+        .gs-step {
+            width: 26px; height: 26px; border-radius: 8px; background: var(--surface);
+            border: 1.5px solid var(--border-med); color: var(--text2); font-size: 16px;
+            font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all .15s; font-family: inherit; line-height: 1; user-select: none;
+        }
+        .gs-step:hover { border-color: var(--pink-deep); color: var(--pink-deep); background: var(--pink-light); }
+        .gs-inp {
+            width: 44px; height: 26px; text-align: center; background: var(--surface);
+            border: 1.5px solid var(--border-med); border-radius: 7px; color: var(--text);
+            font-size: 13px; font-weight: 800; font-family: 'Fira Code', monospace;
+            outline: none; transition: border-color .2s;
+        }
+        .gs-inp:focus { border-color: var(--pink); }
+
+        /* ── GENERATE BUTTON ── */
+        .gen-btn {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, var(--pink) 0%, var(--blue) 100%);
+            border: none; border-radius: var(--radius); color: #fff;
+            font-size: 13.5px; font-weight: 900; cursor: pointer; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+            transition: all .22s; letter-spacing: .2px;
+            box-shadow: 0 4px 18px var(--pink-shadow);
+            text-shadow: 0 1px 3px rgba(0,0,0,.12);
+        }
+        .gen-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(232,125,172,.4); }
+        .gen-btn:active:not(:disabled) { transform: translateY(0); }
+        .gen-btn:disabled {
+            background: var(--bg2); color: var(--text3); cursor: not-allowed;
+            box-shadow: none; border: 1.5px solid var(--border);
+        }
+
+        /* ── MAIN ── */
+        .main {
+            flex: 1; overflow-y: auto; padding: 20px 22px;
+            scrollbar-width: thin; scrollbar-color: var(--border-med) transparent;
+        }
+        .main::-webkit-scrollbar { width: 4px; }
+        .main::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 4px; }
+
+        /* ── PREVIEW ── */
+        .preview-sec { margin-bottom: 22px; }
+        .panel-lbl { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+        .preview-frame {
+            background: var(--surface); border: 1.5px solid var(--border);
+            border-radius: var(--radius-xl); min-height: 165px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; padding: 12px;
+            box-shadow: 0 4px 20px rgba(220,150,195,0.1);
+        }
+        #previewCanvas {
+            max-width: 100%; border-radius: 10px;
+            box-shadow: 0 6px 30px rgba(0,0,0,.15); display: none;
+            transition: opacity .3s;
+        }
+        .preview-empty { text-align: center; color: var(--text3); }
+        .preview-empty-icon { font-size: 32px; opacity: .45; margin-bottom: 6px; }
+        .preview-empty-text { font-size: 12px; font-weight: 700; }
+        .preview-empty-sub { font-size: 10.5px; font-weight: 600; color: var(--text4); margin-top: 3px; }
+
+        /* ── RESULTS ── */
+        #resultsSection { display: none; animation: fadeIn .4s ease; }
+        .results-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+        }
+        .results-title { font-size: 15px; font-weight: 900; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .results-cnt {
+            background: var(--pink-light); color: var(--pink-deep);
+            font-size: 11px; font-weight: 800; border-radius: 6px;
+            padding: 2px 8px; font-family: 'Fira Code', monospace; border: 1px solid var(--border-med);
+        }
+        .results-actions { display: flex; gap: 8px; }
+        .zip-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--green-light); border: 1.5px solid rgba(91,191,160,.4);
+            color: var(--green-deep); font-weight: 800; border-radius: var(--radius);
+            padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+            transition: all .18s;
+        }
+        .zip-btn:hover { background: rgba(94,191,160,.2); transform: translateY(-1px); }
+
+        /* ── GROUP COPY PANEL ── */
+        .gcopy-panel {
+            background: var(--surface); border: 1.5px solid var(--border);
+            border-radius: var(--radius-xl); padding: 14px 16px; margin-bottom: 16px;
+            display: none; box-shadow: 0 2px 12px rgba(220,150,195,0.08);
+        }
+        .gcopy-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+        .gcopy-title { font-size: 13px; font-weight: 900; color: var(--text); }
+        .gcopy-sub { font-size: 10.5px; color: var(--text2); margin-bottom: 10px; line-height: 1.65; font-weight: 600; }
+        .gcopy-sub b { color: var(--amber); font-weight: 800; }
+        .gcopy-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+        .gcopy-btn {
+            display: flex; align-items: center; gap: 5px;
+            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            border: 1.5px solid var(--border-med); color: var(--text2);
+            font-weight: 800; border-radius: var(--radius);
+            padding: 7px 13px; font-size: 11.5px; cursor: pointer;
+            font-family: inherit; transition: all .18s;
+        }
+        .gcopy-btn:hover { border-color: var(--pink-deep); color: var(--pink-deep); box-shadow: 0 2px 10px var(--pink-glow); }
+        .gcopy-btn.done { border-color: rgba(91,191,160,.5); color: var(--green-deep); background: var(--green-light); }
+        .gcopy-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+        /* ── GROUP / DISTRICT DIVIDERS ── */
+        .grp-div { display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; }
+        .grp-line { flex: 1; height: 1.5px; background: linear-gradient(90deg, transparent, var(--border-med), transparent); }
+        .grp-text { font-size: 10px; font-weight: 800; letter-spacing: .8px; color: var(--text3); text-transform: uppercase; white-space: nowrap; }
+        .district-div { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px; }
+        .district-line { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, rgba(245,165,90,.5), transparent); }
+        .district-badge {
+            font-size: 10.5px; font-weight: 900; letter-spacing: .6px;
+            color: var(--orange-deep); background: var(--orange-light);
+            border: 1.5px solid rgba(245,165,90,.4); border-radius: 20px; padding: 3px 12px; white-space: nowrap;
+        }
+
+        /* ── CARD LIST ── */
+        .card-list { display: flex; flex-direction: column; gap: 9px; }
+        .fwd-card {
+            background: var(--surface); border: 1.5px solid var(--border);
+            border-radius: var(--radius-lg); display: grid;
+            grid-template-columns: 200px 1fr; overflow: hidden;
+            transition: border-color .18s, box-shadow .18s, transform .18s;
+            animation: cardIn .3s ease both;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .fwd-card:hover { border-color: var(--pink); box-shadow: 0 4px 18px var(--pink-glow); transform: translateY(-1px); }
+        .fwd-card.merged-card { border-color: rgba(245,165,90,.4); background: linear-gradient(to right, #fff 0%, var(--orange-light) 100%); }
+        .fwd-card.merged-card:hover { border-color: var(--orange); box-shadow: 0 4px 18px rgba(245,165,90,.25); }
+
+        .merged-badge {
+            display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 800;
+            color: var(--orange-deep); background: var(--orange-light);
+            border: 1px solid rgba(245,165,90,.4); border-radius: 5px; padding: 1.5px 7px; margin-left: 6px;
+        }
+
+        /* ── CARD THUMBNAIL ── */
+        .card-thumb {
+            position: relative; cursor: pointer;
+            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            min-height: 112px; overflow: hidden;
+        }
+        .thumb-skeleton {
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, var(--pink-light) 25%, #fce4f2 50%, var(--pink-light) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer { 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+        .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s; }
+        .card-thumb img.loaded { opacity: 1; }
+        .card-thumb img.loaded + .thumb-skeleton { display: none; }
+        .thumb-ov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: background .18s; }
+        .card-thumb:hover .thumb-ov { background: rgba(74,53,80,.55); }
+        .zoom-tip {
+            font-size: 10.5px; font-weight: 800; color: #fff;
+            background: rgba(0,0,0,.45); padding: 4px 11px; border-radius: 20px;
+            opacity: 0; transition: opacity .18s;
+        }
+        .card-thumb:hover .zoom-tip { opacity: 1; }
+
+        /* ── CARD BODY ── */
+        .card-body {
+            padding: 12px 13px; display: flex; flex-direction: column; gap: 8px;
+            border-left: 1.5px solid var(--border);
+        }
+        .card-meta { font-size: 9.5px; font-weight: 800; letter-spacing: .8px; color: var(--text3); text-transform: uppercase; }
+        .card-meta-names { font-size: 9.5px; font-weight: 600; color: var(--text2); margin-top: 3px; line-height: 1.5; }
+        .blessing-box {
+            flex: 1; background: linear-gradient(135deg, var(--pink-light) 0%, var(--blue-light) 100%);
+            border: 1.5px solid var(--border); border-radius: 9px; padding: 9px 11px;
+            font-size: 12.5px; line-height: 1.75; color: var(--text);
+            font-weight: 600; user-select: all; cursor: text; word-break: break-all;
+        }
+        .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .copy-btn {
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+            background: var(--bg2); border: 1.5px solid var(--border-med); border-radius: 8px;
+            padding: 7px 6px; color: var(--text2); font-size: 11px; font-weight: 800;
+            cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap;
+        }
+        .copy-btn:hover { border-color: var(--pink); color: var(--pink-deep); background: var(--pink-light); }
+        .copy-btn.done { border-color: rgba(91,191,160,.4); color: var(--green-deep); background: var(--green-light); }
+        .copy-img-btn:hover { border-color: var(--blue-deep); color: var(--blue-deep); background: var(--blue-light); }
+        .copy-combo-btn {
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            background: linear-gradient(135deg, var(--pink-light), var(--blue-light));
+            border: 1.5px solid var(--border-med); border-radius: 8px; padding: 8px 6px;
+            color: var(--text2); font-size: 11px; font-weight: 800; cursor: pointer;
+            font-family: inherit; transition: all .15s; grid-column: 1 / -1;
+        }
+        .copy-combo-btn:hover { border-color: var(--pink-deep); color: var(--pink-deep); box-shadow: 0 2px 10px var(--pink-glow); }
+        .copy-combo-btn.done { border-color: rgba(91,191,160,.4); color: var(--green-deep); background: var(--green-light); }
+        .copy-combo-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+        .share-btn {
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            background: linear-gradient(135deg, var(--green-light), var(--blue-light));
+            border: 1.5px solid rgba(94,191,160,.4); border-radius: 8px; padding: 8px 6px;
+            color: var(--green-deep); font-size: 11px; font-weight: 800; cursor: pointer;
+            font-family: inherit; transition: all .15s; grid-column: 1 / -1;
+        }
+        .share-btn:hover { border-color: var(--green-deep); box-shadow: 0 2px 10px rgba(94,191,160,.25); }
+        .share-btn.done { border-color: rgba(94,191,160,.5); color: var(--green-deep); background: var(--green-light); }
+        .share-btn:disabled { opacity: .45; cursor: not-allowed; }
+        .share-btn:not([supported]) { display: none; }
+
+        /* ── OCR SUFFIX ROW ── */
+        .ocr-suffix-row {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--purple-light); border: 1.5px solid rgba(201,179,232,.4);
+            border-radius: var(--radius); padding: 9px 13px; flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .ocr-suffix-lbl {
+            font-size: 11px; font-weight: 800; color: var(--text2); white-space: nowrap;
+        }
+        .ocr-suffix-inp {
+            width: 110px;
+            min-width: 110px;
+            height: 32px;
+            padding: 0 10px;
+            background: var(--surface); border: 1.5px solid var(--border-med);
+            border-radius: 8px; color: var(--text);
+            font-size: 14px;
+            font-family: inherit; font-weight: 700;
+            outline: none; transition: border-color .2s, box-shadow .2s;
+            text-align: center;
+        }
+        .ocr-suffix-inp:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(201,179,232,.25); }
+        .ocr-suffix-hint {
+            font-size: 10px; color: var(--text3); font-weight: 600; white-space: nowrap;
+        }
+        .ocr-apply-btn {
+            display: flex; align-items: center; gap: 4px;
+            background: var(--purple-light); border: 1.5px solid rgba(201,179,232,.5);
+            border-radius: 8px; padding: 5px 13px; color: var(--purple);
+            font-size: 11px; font-weight: 800; cursor: pointer; font-family: inherit;
+            transition: all .18s; white-space: nowrap; height: 32px;
+        }
+        .ocr-apply-btn:hover { background: rgba(201,179,232,.3); border-color: var(--purple); }
+
+        /* ── OCR REVIEW MODAL ── */
+        .ocr-review-modal {
+            position: fixed; inset: 0; z-index: 350;
+            background: rgba(74,53,80,.88); backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .ocr-review-modal.open { display: flex; animation: fadeIn .2s ease; }
+        .ocr-review-panel {
+            background: var(--surface); border-radius: var(--radius-xl);
+            width: min(680px, 100%); max-height: 92vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 30px 80px rgba(74,53,80,.35);
+            animation: scaleIn .22s ease; overflow: hidden;
+        }
+        @keyframes scaleIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .ocr-review-header {
+            padding: 16px 20px 12px; border-bottom: 1.5px solid var(--border);
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+            flex-shrink: 0;
+        }
+        .ocr-review-title { font-size: 15px; font-weight: 900; color: var(--text); }
+        .ocr-review-subtitle { font-size: 11px; color: var(--text2); margin-top: 3px; font-weight: 600; line-height: 1.5; }
+        .ocr-review-body { flex: 1; overflow: hidden; display: flex; gap: 0; }
+        .ocr-col {
+            flex: 1; display: flex; flex-direction: column; padding: 14px 16px; gap: 8px;
+            overflow: hidden;
+        }
+        .ocr-col + .ocr-col { border-left: 1.5px solid var(--border); }
+        .ocr-col-title {
+            font-size: 10px; font-weight: 900; letter-spacing: .8px; text-transform: uppercase;
+            color: var(--text3); flex-shrink: 0;
+        }
+        .ocr-raw-box {
+            flex: 1; overflow-y: auto; background: var(--bg2);
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            padding: 10px 12px; font-size: 12px; line-height: 2;
+            color: var(--text2); font-weight: 500; white-space: pre-wrap; word-break: break-all;
+            scrollbar-width: thin; scrollbar-color: var(--border-med) transparent;
+        }
+        .ocr-raw-box::-webkit-scrollbar { width: 3px; }
+        .ocr-raw-box::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
+        .ocr-result-ta {
+            flex: 1; background: var(--surface2); border: 1.5px solid var(--border);
+            border-radius: var(--radius); padding: 10px 12px; font-size: 12px; line-height: 2;
+            font-family: inherit; color: var(--text); resize: none; outline: none;
+            font-weight: 600; overflow-y: auto;
+            transition: border-color .2s, box-shadow .2s;
+            scrollbar-width: thin; scrollbar-color: var(--border-med) transparent;
+        }
+        .ocr-result-ta:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+        .ocr-result-ta::-webkit-scrollbar { width: 3px; }
+        .ocr-result-ta::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
+        .ocr-stats-row {
+            display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+        }
+        .ocr-stat {
+            font-size: 10px; font-weight: 800; padding: 2px 9px; border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        .ocr-stat.green { background: var(--green-light); color: var(--green-deep); border-color: rgba(94,191,160,.4); }
+        .ocr-stat.amber { background: #fef8e8; color: #b07a10; border-color: rgba(245,197,106,.5); }
+        .ocr-stat.red   { background: #fdecea; color: #c03530; border-color: rgba(244,149,138,.5); }
+        .ocr-review-footer {
+            padding: 12px 20px; border-top: 1.5px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--bg); flex-shrink: 0; gap: 10px; flex-wrap: wrap;
+        }
+        .ocr-hint { font-size: 10.5px; color: var(--text3); font-weight: 600; line-height: 1.5; }
+        .ocr-hint b { color: var(--text2); }
+        .ocr-confirm-btn {
+            background: linear-gradient(135deg, var(--pink) 0%, var(--blue) 100%);
+            border: none; border-radius: var(--radius); color: #fff;
+            font-size: 12.5px; font-weight: 900; cursor: pointer; font-family: inherit;
+            padding: 9px 22px; transition: all .22s;
+            box-shadow: 0 4px 14px var(--pink-shadow);
+        }
+        .ocr-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,125,172,.4); }
+
+        /* ── MODAL ── */
+        .modal {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(74,53,80,.9); backdrop-filter: blur(8px);
+            display: none; align-items: center; justify-content: center; padding: 24px;
+        }
+        .modal.open { display: flex; animation: fadeIn .2s ease; }
+        .modal img {
+            max-width: 100%; max-height: 88vh; border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,.6);
+            animation: scaleIn .2s ease;
+        }
+        .modal-x {
+            position: absolute; top: 16px; right: 16px; width: 34px; height: 34px;
+            border-radius: 50%; background: rgba(255,255,255,.12);
+            border: 1.5px solid rgba(255,255,255,.2); color: rgba(255,255,255,.9);
+            font-size: 16px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; transition: background .18s; font-weight: 700;
+        }
+        .modal-x:hover { background: rgba(255,255,255,.25); }
+        .modal-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(255,255,255,.5); font-weight: 600; white-space: nowrap; }
+
+        /* ── LOADER ── */
+        .loader {
+            position: fixed; inset: 0; z-index: 300;
+            background: rgba(253,246,249,.9); backdrop-filter: blur(12px);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; gap: 14px;
+        }
+        .loader.show { display: flex; }
+        .loader-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .spin {
+            width: 38px; height: 38px; border: 3px solid var(--border-med);
+            border-top-color: var(--pink-deep); border-right-color: var(--blue-deep);
+            border-radius: 50%; animation: spin .65s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-txt { font-size: 13px; font-weight: 700; color: var(--text2); text-align: center; max-width: 220px; line-height: 1.5; }
+        .loader-prog { width: 180px; height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: -4px; }
+        .loader-prog-bar { height: 100%; background: linear-gradient(90deg, var(--pink-deep), var(--blue-deep)); border-radius: 4px; transition: width .3s ease; width: 0%; }
+
+        /* ── TOAST ── */
+        .toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 400; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast {
+            background: var(--text); color: #fff; font-size: 12.5px; font-weight: 700;
+            padding: 9px 18px; border-radius: 20px;
+            box-shadow: 0 6px 24px rgba(74,53,80,.3);
+            animation: toastIn .3s ease;
+            pointer-events: auto;
+        }
+        .toast.success { background: var(--green-deep); }
+        .toast.error { background: #d94030; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(12px); } }
+        .toast.out { animation: toastOut .3s ease forwards; }
+
+        /* ── AI SETTINGS MODAL ── */
+        .ai-settings-modal {
+            position: fixed; inset: 0; z-index: 260;
+            background: rgba(74,53,80,.85); backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .ai-settings-modal.open { display: flex; animation: fadeIn .2s ease; }
+        .ai-settings-panel {
+            background: var(--surface); border-radius: var(--radius-xl);
+            width: min(480px, 100%); max-height: 90vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(74,53,80,.3);
+            animation: scaleIn .22s ease; overflow: hidden;
+        }
+        .ai-settings-header {
+            padding: 16px 20px 12px; border-bottom: 1.5px solid var(--border);
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+            flex-shrink: 0;
+        }
+        .ai-settings-title { font-size: 15px; font-weight: 900; color: var(--text); }
+        .ai-settings-subtitle { font-size: 11px; color: var(--text2); margin-top: 3px; font-weight: 600; line-height: 1.5; }
+        .ai-settings-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+        .ai-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+        .ai-toggle-label { font-size: 13px; font-weight: 800; color: var(--text); }
+        .ai-switch { position: relative; width: 44px; height: 24px; cursor: pointer; }
+        .ai-switch input { opacity: 0; width: 0; height: 0; }
+        .ai-slider {
+            position: absolute; inset: 0; background: var(--border-med); border-radius: 12px;
+            transition: .25s;
+        }
+        .ai-slider::before {
+            content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px;
+            background: #fff; border-radius: 50%; transition: .25s;
+        }
+        .ai-switch input:checked + .ai-slider { background: linear-gradient(135deg, var(--pink), var(--blue)); }
+        .ai-switch input:checked + .ai-slider::before { transform: translateX(20px); }
+        .ai-fields { display: flex; flex-direction: column; gap: 12px; }
+        .ai-fields.disabled { opacity: .4; pointer-events: none; }
+        .ai-field-group { display: flex; flex-direction: column; gap: 4px; }
+        .ai-field-label { font-size: 11px; font-weight: 800; color: var(--text2); letter-spacing: .3px; }
+        .ai-field-input, .ai-field-select {
+            background: var(--bg2); border: 1.5px solid var(--border); border-radius: var(--radius);
+            padding: 9px 12px; font-size: 12.5px; font-family: inherit; color: var(--text);
+            outline: none; transition: border-color .2s, box-shadow .2s; font-weight: 600;
+        }
+        .ai-field-input:focus, .ai-field-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+        .ai-field-select { cursor: pointer; appearance: auto; }
+        .ai-notice { font-size: 10.5px; color: var(--text3); font-weight: 600; line-height: 1.6; padding: 8px 10px; background: #fef8e8; border: 1px solid rgba(245,197,106,.3); border-radius: var(--radius); }
+        .ai-settings-footer {
+            padding: 12px 20px; border-top: 1.5px solid var(--border);
+            display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+            flex-shrink: 0;
+        }
+        .ai-btn {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: 1.5px solid rgba(108,92,231,.3);
+            border-radius: var(--radius); color: #fff; font-size: 11px; font-weight: 800;
+            cursor: pointer; font-family: inherit; padding: 6px 12px; transition: all .15s;
+            white-space: nowrap;
+        }
+        .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(108,92,231,.3); }
+        .ai-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .ai-cfg-btn {
+            background: var(--bg2); border: 1.5px solid var(--border); border-radius: var(--radius);
+            font-size: 12px; cursor: pointer; font-family: inherit; padding: 5px 8px;
+            transition: all .15s; color: var(--text2);
+        }
+        .ai-cfg-btn:hover { border-color: var(--pink); color: var(--pink); }
+
+        /* ── MANAGER MODAL ── */
+        .mgr-modal {
+            position: fixed; inset: 0; z-index: 250;
+            background: rgba(74,53,80,.85); backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .mgr-modal.open { display: flex; animation: fadeIn .2s ease; }
+        .mgr-panel {
+            background: var(--surface); border-radius: var(--radius-xl);
+            width: min(760px, 100%); max-height: 88vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 30px 80px rgba(74,53,80,.35);
+            animation: scaleIn .22s ease;
+            overflow: hidden;
+        }
+        .mgr-header {
+            padding: 18px 22px 14px; border-bottom: 1.5px solid var(--border);
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+            flex-shrink: 0;
+        }
+        .mgr-title-block {}
+        .mgr-title { font-size: 16px; font-weight: 900; color: var(--text); }
+        .mgr-subtitle { font-size: 11px; color: var(--text2); margin-top: 3px; font-weight: 600; }
+        .mgr-close {
+            width: 30px; height: 30px; border-radius: 50%; background: var(--bg2);
+            border: 1.5px solid var(--border); color: var(--text2); font-size: 14px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all .18s; font-weight: 700; flex-shrink: 0;
+        }
+        .mgr-close:hover { background: var(--pink-light); border-color: var(--pink-deep); color: var(--pink-deep); }
+        .mgr-tabs {
+            display: flex; gap: 0; padding: 0 22px; border-bottom: 1.5px solid var(--border);
+            flex-shrink: 0; background: var(--bg);
+        }
+        .mgr-tab {
+            padding: 10px 16px; font-size: 12px; font-weight: 800; cursor: pointer;
+            color: var(--text3); border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
+            transition: all .18s; white-space: nowrap;
+        }
+        .mgr-tab:hover { color: var(--text2); }
+        .mgr-tab.active { color: var(--pink-deep); border-bottom-color: var(--pink-deep); }
+        .mgr-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .mgr-tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; padding: 16px 22px; gap: 14px; }
+        .mgr-tab-content.active { display: flex; }
+
+        /* Upload tab */
+        .upload-hint-box {
+            background: var(--blue-light); border: 1.5px solid rgba(111,168,232,.35);
+            border-radius: var(--radius); padding: 12px 14px;
+        }
+        .upload-hint-box p { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+        .upload-hint-box ul { padding-left: 16px; }
+        .upload-hint-box li { font-size: 11px; color: var(--text2); line-height: 1.9; font-weight: 600; }
+        .upload-hint-box li code {
+            font-family: 'Fira Code', monospace; font-size: 10.5px;
+            background: rgba(111,168,232,.2); border-radius: 4px; padding: 1px 5px; color: var(--blue-deep);
+        }
+        .upload-dropzone {
+            border: 2px dashed var(--border-med); border-radius: var(--radius-lg);
+            padding: 28px 20px; text-align: center; cursor: pointer;
+            background: linear-gradient(135deg, var(--pink-light) 0%, var(--blue-light) 100%);
+            transition: all .2s; position: relative; flex-shrink: 0;
+        }
+        .upload-dropzone:hover, .upload-dropzone.drag-over {
+            border-color: var(--pink-deep); box-shadow: 0 4px 20px var(--pink-glow);
+        }
+        .upload-dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .upload-dz-icon { font-size: 28px; margin-bottom: 6px; }
+        .upload-dz-lbl { font-size: 13px; font-weight: 800; color: var(--text); }
+        .upload-dz-sub { font-size: 11px; color: var(--text2); margin-top: 4px; font-weight: 600; }
+        .upload-result {
+            display: none; background: var(--green-light); border: 1.5px solid rgba(94,191,160,.4);
+            border-radius: var(--radius); padding: 12px 14px;
+        }
+        .upload-result-title { font-size: 12.5px; font-weight: 800; color: var(--green-deep); margin-bottom: 6px; }
+        .upload-result-detail { font-size: 11px; color: var(--text2); line-height: 1.8; font-weight: 600; }
+        .upload-result-detail b { color: var(--text); }
+
+        /* Edit tab */
+        .edit-toolbar {
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+        }
+        .edit-search {
+            flex: 1; min-width: 140px; height: 32px; padding: 0 12px;
+            background: var(--surface2); border: 1.5px solid var(--border); border-radius: 9px;
+            color: var(--text); font-size: 12px; font-family: inherit; font-weight: 600;
+            outline: none; transition: border-color .2s;
+        }
+        .edit-search:focus { border-color: var(--pink); }
+        .edit-search::placeholder { color: var(--text3); }
+        .edit-add-btn {
+            display: flex; align-items: center; gap: 5px;
+            background: var(--pink-light); border: 1.5px solid var(--border-med); border-radius: 9px;
+            padding: 5px 13px; color: var(--pink-deep); font-size: 11.5px; font-weight: 800;
+            cursor: pointer; font-family: inherit; transition: all .18s; white-space: nowrap;
+        }
+        .edit-add-btn:hover { background: var(--pink-glow); border-color: var(--pink-deep); }
+        .edit-cnt-badge {
+            font-family: 'Fira Code', monospace; font-size: 10.5px; font-weight: 700;
+            background: var(--purple-light); color: var(--purple); border: 1px solid rgba(201,179,232,.4);
+            border-radius: 6px; padding: 2px 9px; white-space: nowrap;
+        }
+        .edit-table-wrap { flex: 1; overflow-y: auto; border: 1.5px solid var(--border); border-radius: var(--radius); }
+        .edit-table-wrap::-webkit-scrollbar { width: 4px; }
+        .edit-table-wrap::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 4px; }
+        table.edit-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table.edit-tbl thead { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+        table.edit-tbl thead th {
+            padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 800;
+            letter-spacing: .8px; text-transform: uppercase; color: var(--text3);
+            border-bottom: 1.5px solid var(--border);
+        }
+        table.edit-tbl tbody tr { transition: background .15s; }
+        table.edit-tbl tbody tr:hover { background: var(--bg2); }
+        table.edit-tbl tbody tr.new-row { background: #edfaf5; animation: fadeIn .3s ease; }
+        table.edit-tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        table.edit-tbl td:last-child { border-bottom: none; }
+        .tbl-inp {
+            width: 100%; background: transparent; border: 1.5px solid transparent; border-radius: 6px;
+            padding: 4px 7px; font-size: 12px; font-family: inherit; font-weight: 600;
+            color: var(--text); outline: none; transition: all .15s;
+        }
+        .tbl-inp:focus { background: var(--surface); border-color: var(--pink); }
+        .tbl-inp:hover:not(:focus) { background: var(--surface2); border-color: var(--border); }
+        .tbl-del {
+            width: 26px; height: 26px; border-radius: 7px; background: transparent;
+            border: 1.5px solid transparent; color: var(--text3); font-size: 14px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all .15px; font-family: inherit;
+        }
+        .tbl-del:hover { background: #fdecea; border-color: rgba(244,149,138,.4); color: #d94030; }
+        .district-tag {
+            display: inline-block; font-size: 9.5px; font-weight: 800; padding: 1.5px 7px;
+            border-radius: 5px; background: var(--orange-light); color: var(--orange-deep);
+            border: 1px solid rgba(245,165,90,.35);
+        }
+        .no-rows { padding: 28px; text-align: center; color: var(--text3); font-size: 12px; font-weight: 700; }
+
+        /* Export tab */
+        .export-box {
+            background: var(--surface2); border: 1.5px solid var(--border);
+            border-radius: var(--radius-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .export-box p { font-size: 12px; font-weight: 700; color: var(--text); }
+        .export-box small { font-size: 11px; color: var(--text2); font-weight: 600; line-height: 1.7; }
+        .export-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .export-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--pink-light); border: 1.5px solid var(--border-med);
+            color: var(--text2); font-weight: 800; border-radius: var(--radius);
+            padding: 8px 15px; font-size: 12px; cursor: pointer; font-family: inherit;
+            transition: all .18s;
+        }
+        .export-btn:hover { border-color: var(--pink-deep); color: var(--pink-deep); background: var(--pink-glow); }
+
+        .mgr-footer {
+            padding: 12px 22px; border-top: 1.5px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            background: var(--bg); flex-shrink: 0; flex-wrap: wrap;
+        }
+        .mgr-status { font-size: 11px; color: var(--text3); font-weight: 600; }
+        .mgr-status b { color: var(--green-deep); }
+        .mgr-save-btn {
+            background: linear-gradient(135deg, var(--pink) 0%, var(--blue) 100%);
+            border: none; border-radius: var(--radius); color: #fff;
+            font-size: 13px; font-weight: 900; cursor: pointer; font-family: inherit;
+            padding: 9px 22px; transition: all .22s;
+            box-shadow: 0 4px 14px var(--pink-shadow);
+        }
+        .mgr-save-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,125,172,.4); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 700px) {
+            .sidebar { width: 100%; border-right: none; border-bottom: 1.5px solid var(--border); max-height: 52vh; }
+            .layout { flex-direction: column; }
+            .fwd-card { grid-template-columns: 1fr; }
+            .card-body { border-left: none; border-top: 1.5px solid var(--border); }
+            .main { padding: 14px; }
+            .mgr-panel { max-height: 95vh; }
+            .ocr-review-body { flex-direction: column; overflow-y: auto; }
+            .ocr-col + .ocr-col { border-left: none; border-top: 1.5px solid var(--border); }
+            .ocr-col { overflow: visible; min-height: 0; }
+            .ocr-raw-box { flex: none; max-height: 28vh; }
+            .ocr-result-ta { flex: 1; min-height: 30vh; }
+            .ocr-review-header { flex-shrink: 0; }
+            .ocr-review-footer { flex-shrink: 0; }
+            .card-actions { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .copy-btn, .share-btn { padding: 10px 6px; font-size: 12px; min-height: 40px; }
+            .copy-combo-btn, .share-btn { grid-column: 1 / -1; min-height: 44px; }
+            .gen-btn { min-height: 48px; }
+            .gcopy-btn { min-height: 40px; padding: 9px 14px; }
+            .btn-ghost { min-height: 36px; padding: 6px 14px; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="logo">
+        <div class="logo-gem">🌸</div>
+        <div class="logo-name">营服 PPT 批量生成</div>
+        <div class="logo-ver">v4.0</div>
+    </div>
+    <div class="header-right">
+        <div class="status-pill" id="ocrPill"><div class="dot" id="ocrDot"></div><span id="ocrLabel">OCR 待机</span></div>
+        <button class="btn-ghost" onclick="openMgrModal()">👤 经理名单</button>
+        <button class="btn-ghost" onclick="if(confirm('确认重置所有内容？'))location.reload()">↺ 重置</button>
+    </div>
+</header>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-body">
+            <!-- Section 1 -->
+            <div class="section">
+                <div class="sec-head"><div class="sec-num">1</div><div class="sec-title">上传 PPTX 模板</div></div>
+                <div class="dropzone" id="dropZone">
+                    <input type="file" id="pptInput" accept=".pptx">
+                    <div class="dz-icon">📁</div>
+                    <div class="dz-label">点击或拖拽上传 PPTX</div>
+                    <div class="dz-sub">需含「营服名称」占位符</div>
+                </div>
+                <div class="file-tag" id="fileTag">
+                    <div style="min-width:0">
+                        <div class="file-tag-name" id="tagName"></div>
+                        <div class="file-tag-sub">✓ 已找到占位符</div>
+                    </div>
+                    <button class="file-tag-change" onclick="document.getElementById('pptInput').click()">更换</button>
+                </div>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="section">
+                <div class="sec-head"><div class="sec-num">2</div><div class="sec-title">导入营服名单</div></div>
+                <div class="ta-card">
+                    <textarea id="textList" class="the-ta" placeholder="每行一个营服名，例如：&#10;番禺洛浦社区&#10;天河元岗社区&#10;...&#10;或点击「OCR 识图」自动识别"></textarea>
+                    <div class="ta-bar">
+                        <span class="count-chip" id="lineCount">0 行</span>
+                        <button class="ocr-btn" onclick="handleOCRClick()">📷 OCR 识图</button>
+                        <button class="ai-btn" id="aiOcrBtn" onclick="handleAIClick()" style="display:none">🤖 AI 识图</button>
+                        <button class="ai-cfg-btn" onclick="openAISettings()" title="AI识别设置">⚙️</button>
+                    </div>
+                </div>
+                <input type="file" id="ocrFileInput" accept="image/*" style="display:none">
+                <input type="file" id="aiFileInput" accept="image/*" style="display:none">
+            </div>
+
+            <!-- Section 3 -->
+            <div class="section">
+                <div class="sec-head"><div class="sec-num">3</div><div class="sec-title">祝福语模板</div></div>
+                <textarea id="blessingTpl" class="blessing-ta">恭喜XXX营服当日高套封闭[庆祝][庆祝][庆祝]</textarea>
+                <div class="hint"><em>XXX</em> 将自动替换为营服名称</div>
+                <div class="toggle-row">
+                    <span class="toggle-lbl">自动 @营服经理</span>
+                    <label class="sw"><input type="checkbox" id="atToggle" checked><span class="sw-s"></span></label>
+                </div>
+                <div class="toggle-row orange-row">
+                    <span class="toggle-lbl">
+                        🗂️ 分局合并输出
+                        <small>同一分局多营服合并为一张PPT<br>字号自动随数量缩小适配</small>
+                    </span>
+                    <label class="sw orange"><input type="checkbox" id="mergeToggle"><span class="sw-s"></span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="gs-row">
+                <div class="gs-lbl">每组条数<small>适配微信分批发图限制</small></div>
+                <div class="gs-ctrl">
+                    <button class="gs-step" onclick="adjGS(-1)">−</button>
+                    <input type="number" class="gs-inp" id="groupSizeInput" value="9" min="1" max="99">
+                    <button class="gs-step" onclick="adjGS(1)">+</button>
+                </div>
+            </div>
+            <button id="genBtn" class="gen-btn" disabled onclick="startGen()">✨ 开始批量生成</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="preview-sec">
+            <div class="panel-lbl">实时预览</div>
+            <div class="preview-frame">
+                <canvas id="previewCanvas"></canvas>
+                <div class="preview-empty" id="previewEmpty">
+                    <div class="preview-empty-icon">🖼️</div>
+                    <div class="preview-empty-text">请先上传 PPTX 模板</div>
+                    <div class="preview-empty-sub">支持拖拽上传</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsSection">
+            <div class="results-bar">
+                <div class="results-title">转发列表 <span class="results-cnt" id="resultCnt">0</span></div>
+                <div class="results-actions">
+                    <button class="zip-btn" onclick="downloadZip()">📦 打包 ZIP</button>
+                </div>
+            </div>
+            <div class="gcopy-panel" id="gcopyPanel">
+                <div class="gcopy-top"><span>📱</span><div class="gcopy-title">分组复制</div></div>
+                <div class="gcopy-sub">按设定分组，一键复制图文，粘贴到微信即发。每组 <b id="gcHint">9</b> 条。</div>
+                <div class="gcopy-btns" id="gcopyBtns"></div>
+            </div>
+            <div class="card-list" id="cardList"></div>
+        </div>
+    </main>
+</div>
+
+<!-- OCR Review Modal -->
+<div class="ocr-review-modal" id="ocrReviewModal">
+    <div class="ocr-review-panel">
+        <div class="ocr-review-header">
+            <div>
+                <div class="ocr-review-title">📋 OCR 识别结果校对</div>
+                <div class="ocr-review-subtitle">左侧为原始识别文字，右侧为智能整理后的营服名称，请核对后点击「确认使用」</div>
+            </div>
+            <button class="mgr-close" onclick="closeOcrReview()">✕</button>
+        </div>
+        <div class="ocr-review-body">
+            <div class="ocr-col">
+                <div class="ocr-col-title">🔍 原始识别内容</div>
+                <div class="ocr-raw-box" id="ocrRawBox"></div>
+            </div>
+            <div class="ocr-col">
+                <div class="ocr-col-title" style="display:flex;align-items:center;justify-content:space-between;">
+                    <span>✅ 整理后名单（可直接编辑）</span>
+                </div>
+                <div class="ocr-stats-row" id="ocrStatsRow"></div>
+                <!-- ── SUFFIX CONTROL ROW ── -->
+                <div class="ocr-suffix-row">
+                    <span class="ocr-suffix-lbl">统一后缀</span>
+                    <input
+                        type="text"
+                        class="ocr-suffix-inp"
+                        id="ocrSuffixInp"
+                        value="社区"
+                        maxlength="8"
+                        placeholder="社区"
+                        title="所有名称将以此后缀结尾"
+                    >
+                    <button class="ocr-apply-btn" onclick="applyOcrSuffix()">⟳ 重新应用</button>
+                    <span class="ocr-suffix-hint">改后缀后点击重新应用</span>
+                </div>
+                <textarea class="ocr-result-ta" id="ocrResultTa" spellcheck="false"></textarea>
+            </div>
+        </div>
+        <div class="ocr-review-footer">
+            <div class="ocr-hint">每行一个营服名 · <b>可直接在右侧编辑</b>修正识别错误</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-ghost" onclick="closeOcrReview()">取消</button>
+                <button class="ocr-confirm-btn" onclick="confirmOcrResult()">✓ 确认使用</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Settings Modal -->
+<div class="ai-settings-modal" id="aiSettingsModal">
+    <div class="ai-settings-panel">
+        <div class="ai-settings-header">
+            <div>
+                <div class="ai-settings-title">🤖 AI 识别设置</div>
+                <div class="ai-settings-subtitle">配置AI大模型API，实现高精度文字识别</div>
+            </div>
+            <button class="mgr-close" onclick="closeAISettings()">✕</button>
+        </div>
+        <div class="ai-settings-body">
+            <div class="ai-toggle-row">
+                <label class="ai-toggle-label">启用AI识别</label>
+                <label class="ai-switch">
+                    <input type="checkbox" id="aiEnabled" onchange="toggleAIEnabled()">
+                    <span class="ai-slider"></span>
+                </label>
+            </div>
+            <div class="ai-fields" id="aiFields">
+                <div class="ai-field-group">
+                    <label class="ai-field-label">API 提供商</label>
+                    <select class="ai-field-select" id="aiProvider" onchange="onAIProviderChange()">
+                        <option value="waoo">WaooAPI (内置)</option>
+                        <option value="modelscope">魔搭社区 (内置)</option>
+                        <option value="nvidia">NVIDIA NIM (内置)</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="qwen">通义千问</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+                <div class="ai-field-group">
+                    <label class="ai-field-label">API 地址</label>
+                    <input type="text" class="ai-field-input" id="aiApiUrl" placeholder="https://api.example.com/v1/chat/completions">
+                </div>
+                <div class="ai-field-group">
+                    <label class="ai-field-label">API Key</label>
+                    <input type="password" class="ai-field-input" id="aiApiKey" placeholder="sk-...">
+                </div>
+                <div class="ai-field-group">
+                    <label class="ai-field-label">模型名称</label>
+                    <input type="text" class="ai-field-input" id="aiModel" placeholder="glm-4.7">
+                </div>
+                <div class="ai-notice">
+                    ⚠️ API Key仅保存在浏览器本地，不会上传到任何服务器。AI调用会产生API费用。
+                </div>
+            </div>
+        </div>
+        <div class="ai-settings-footer">
+            <button class="btn-ghost" onclick="testAIConnection()" id="aiTestBtn">🔍 测试连接</button>
+            <button class="mgr-save-btn" onclick="saveAISettings()">💾 保存设置</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manager Modal -->
+<div class="mgr-modal" id="mgrModal" onclick="handleMgrOverlayClick(event)">
+    <div class="mgr-panel">
+        <div class="mgr-header">
+            <div class="mgr-title-block">
+                <div class="mgr-title">👤 营服经理名单管理</div>
+                <div class="mgr-subtitle">当前共 <span id="mgrCntDisplay">0</span> 条对应关系 · 修改后点击「保存应用」生效</div>
+            </div>
+            <button class="mgr-close" onclick="closeMgrModal()">✕</button>
+        </div>
+        <div class="mgr-tabs">
+            <div class="mgr-tab active" onclick="switchMgrTab('upload')">📤 批量导入</div>
+            <div class="mgr-tab" onclick="switchMgrTab('edit')">✏️ 编辑名单</div>
+            <div class="mgr-tab" onclick="switchMgrTab('export')">💾 导出备份</div>
+        </div>
+        <div class="mgr-body">
+            <!-- Upload Tab -->
+            <div class="mgr-tab-content active" id="mgrTabUpload">
+                <div class="upload-hint-box">
+                    <p>📋 支持以下格式导入：</p>
+                    <ul>
+                        <li><code>.csv</code> 或 <code>.txt</code> 文件 — 每行格式：<code>营服名称,经理姓名</code>（逗号或Tab分隔）</li>
+                        <li><code>.xlsx</code> 文件 — A列为营服名称，B列为经理姓名，首行可为标题行（自动跳过）</li>
+                        <li>导入后自动合并覆盖，已有记录不受影响，仅更新/新增匹配的条目</li>
+                    </ul>
+                </div>
+                <div class="upload-dropzone" id="mgrDropzone">
+                    <input type="file" id="mgrFileInput" accept=".csv,.txt,.xlsx">
+                    <div class="upload-dz-icon">📂</div>
+                    <div class="upload-dz-lbl">点击或拖拽上传名单文件</div>
+                    <div class="upload-dz-sub">支持 CSV / TXT / XLSX</div>
+                </div>
+                <div class="upload-result" id="uploadResult">
+                    <div class="upload-result-title">✅ 导入预览</div>
+                    <div class="upload-result-detail" id="uploadResultDetail"></div>
+                </div>
+                <div style="flex:1"></div>
+            </div>
+
+            <!-- Edit Tab -->
+            <div class="mgr-tab-content" id="mgrTabEdit">
+                <div class="edit-toolbar">
+                    <input type="text" class="edit-search" id="editSearch" placeholder="🔍 搜索营服名称或经理姓名..." oninput="filterTable()">
+                    <span class="edit-cnt-badge" id="editCntBadge">0 条</span>
+                    <button class="edit-add-btn" onclick="addNewRow()">＋ 新增</button>
+                </div>
+                <div class="edit-table-wrap">
+                    <table class="edit-tbl">
+                        <thead>
+                            <tr>
+                                <th style="width:36%">营服名称</th>
+                                <th style="width:22%">所属分局</th>
+                                <th style="width:28%">经理姓名</th>
+                                <th style="width:14%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="editTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Export Tab -->
+            <div class="mgr-tab-content" id="mgrTabExport">
+                <div class="export-box">
+                    <p>💾 导出当前名单</p>
+                    <small>将当前所有营服经理对应关系导出为文件，方便备份或在其他设备上导入使用。</small>
+                    <div class="export-btns">
+                        <button class="export-btn" onclick="exportCSV()">📄 导出为 CSV</button>
+                        <button class="export-btn" onclick="exportTXT()">📝 导出为 TXT</button>
+                    </div>
+                </div>
+                <div class="export-box">
+                    <p>🔄 重置为内置名单</p>
+                    <small>清除所有自定义修改，恢复到程序内置的默认名单。此操作不可撤销。</small>
+                    <div class="export-btns">
+                        <button class="export-btn" style="border-color:rgba(244,149,138,.4);color:#d94030;background:#fdecea;" onclick="resetToDefault()">⚠️ 重置为默认</button>
+                    </div>
+                </div>
+                <div style="flex:1"></div>
+            </div>
+        </div>
+        <div class="mgr-footer">
+            <div class="mgr-status">当前生效：<b id="mgrActiveCount">0</b> 条记录</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-ghost" onclick="closeMgrModal()">取消</button>
+                <button class="mgr-save-btn" onclick="saveMgrChanges()">✓ 保存应用</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal" onclick="closeModal()">
+    <button class="modal-x" onclick="closeModal()">✕</button>
+    <img id="modalImg" src="" alt="">
+    <div class="modal-hint">按 ESC 关闭</div>
+</div>
+
+<!-- Loader -->
+<div class="loader" id="loader">
+    <div class="loader-inner">
+        <div class="spin"></div>
+        <div class="loader-txt" id="loaderMsg">处理中...</div>
+        <div class="loader-prog"><div class="loader-prog-bar" id="loaderProgBar"></div></div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ── DEFAULT MANAGER MAP ──
+const DEFAULT_MANAGER_MAP = {
+    "天河元岗社区":"郭文颖","天河粤垦社区":"陈锋","天河汇景社区":"李振兴","天河天府社区":"梁煜钧",
+    "天河科韵社区":"邓秉","天河石牌社区":"余路明","天河龙口社区":"郑敏婷","天河花城社区":"唐岭",
+    "天河马场社区":"林圣威","天河体育中心社区":"温一恒","天河员村社区":"梁凯","番禺东城社区":"张中敏",
+    "番禺西丽社区":"谭映荷","番禺祈福社区":"李超","番禺南站社区":"张榕生","番禺华南社区":"陈卉平",
+    "番禺洛浦社区":"黄洁莹","番禺大石社区":"陈晓通","番禺南浦社区":"何帆","番禺桥南社区":"钟文俊",
+    "番禺广场社区":"孙欣","番禺沙头社区":"邓祖延","番禺长隆社区":"关俊文","番禺石楼社区":"韩焯彬",
+    "番禺亚运城社区":"戴海洋","白云同和社区":"周俊涛","白云永平社区":"张晓明","白云同德社区":"陈秉贤",
+    "白云石井社区":"尚忠麟","白云黄石社区":"孙峻","白云景泰社区":"黄健波","白云三元里社区":"张薇",
+    "白云棠景社区":"杨兴妹","越秀大沙头社区":"庄恭槟","越秀农林社区":"刘鲁唯","越秀水荫路社区":"陈璇君",
+    "越秀洪桥社区":"王光辉","越秀淘金社区":"张明新","越秀中山一社区":"陈锡海","越秀较场西社区":"彭俊健",
+    "越秀五羊社区":"李景点","越秀解放路社区":"吴佳豪","越秀中山五社区":"张武杰","海珠江南西社区":"胡剑峰",
+    "海珠滨江西社区":"龙腾","海珠工业中社区":"陈晨","海珠宝岗社区":"邹仪","海珠晓港社区":"李狄龙",
+    "海珠江燕社区":"郑际哲","海珠东晓社区":"罗泰佳","海珠江湾社区":"况云","海珠海联社区":"郑灿强",
+    "海珠新港西社区":"雷姗姗","海珠滨江社区":"陈运潮","海珠新港中社区":"陈益耀","海珠新港东社区":"何瑞进",
+    "海珠南洲社区":"高文广","荔湾荔枝湾社区":"何文辉","荔湾彩虹社区":"林创雄","荔湾人民路社区":"谢晓霞",
+    "荔湾沿江社区":"李文","荔湾站前社区":"欧昌博","荔湾桃园社区":"肖健","荔湾双桥社区":"李德泉",
+    "荔湾金沙社区":"张丽娟","荔湾花地社区":"林楠","荔湾大冲口社区":"晏文军","荔湾广钢社区":"黄石棚",
+    "黄埔车陂联和社区":"李俊杰","黄埔东圃社区":"刘航","黄埔西部社区":"余杭","黄埔东部社区":"邱壮雄",
+    "黄埔萝岗北部社区":"况霞","黄埔萝岗南部社区":"吴庆鑫","黄埔知识城社区":"吁昊","增城永宁社区":"卢集炫",
+    "增城凤凰城社区":"曾定泰","增城永宁中社区":"季海华","增城新塘社区":"曾鸿伦","增城新塘东社区":"龚著鹏",
+    "增城荔城社区":"邬成志","增城荔城东社区":"林凯伟","增城荔湖社区":"连晓恒","增城朱村营服社区":"何秀霞",
+    "花都花城":"谢纯丽","花都新华":"潘冠杰","花都秀全":"郑椿耀","花都曙光":"林根廷","花都建设北":"刘宁",
+    "南沙进港社区":"魏泽滨","南沙港前社区":"黄卓","明珠湾社区":"何嘉莹","从化街口":"徐天乐",
+    "从化江埔河东南":"胡志刚","从化江埔河东北":"李慕菊"
+};
+
+let MANAGER_MAP = Object.assign({}, DEFAULT_MANAGER_MAP);
+let pendingMap = null;
+
+const DISTRICT_PREFIXES = ["天河","番禺","白云","越秀","海珠","荔湾","黄埔","增城","花都","南沙","从化"];
+
+const OCR_CORRECTIONS = {
+    "柬城": "荔城", "荡城": "荔城",
+    "荔坡": "荔湾", "荔博": "荔湾", "荔挎": "荔湾",
+    "番寓": "番禺", "番禹": "番禺",
+    "天可": "天河", "大河": "天河",
+    "白灵": "白云", "白雷": "白云",
+    "赵秀": "越秀",
+    "海蛛": "海珠",
+    "黄坡": "黄埔", "黄捕": "黄埔",
+    "增坡": "增城", "增域": "增城",
+    "花邻": "花都", "花部": "花都",
+    "南汐": "南沙", "南少": "南沙",
+    "从忆": "从化", "从北": "从化",
+};
+
+const OCR_CONTEXT_CORRECTIONS = [
+    { pattern: /增城东城/g, replacement: "增城荔城" },
+    { pattern: /增城柬城/g, replacement: "增城荔城" },
+];
+
+function applyOCRCorrections(text) {
+    let result = text;
+    for (const [wrong, right] of Object.entries(OCR_CORRECTIONS)) {
+        result = result.replaceAll(wrong, right);
+    }
+    for (const cc of OCR_CONTEXT_CORRECTIONS) {
+        result = result.replace(cc.pattern, cc.replacement);
+    }
+    return result;
+}
+
+// Known tail suffixes (all combinations we might encounter)
+const KNOWN_SUFFIXES = ["社区营服","营服","社区"];
+
+/**
+ * Strip any known suffix from the end of a name, returning the bare stem.
+ */
+function stripSuffix(name) {
+    const sorted = [...KNOWN_SUFFIXES].sort((a, b) => b.length - a.length);
+    for (const s of sorted) {
+        if (name.endsWith(s)) return name.slice(0, name.length - s.length);
+    }
+    return name;
+}
+
+/**
+ * Normalise a single name to the desired suffix.
+ */
+function normaliseSuffix(name, suffix) {
+    const stem = stripSuffix(name.trim());
+    if (!stem || stem.length < 2) return '';
+    return stem + suffix;
+}
+
+function getDistrict(name) {
+    const clean = stripSuffix(name);
+    for (const d of DISTRICT_PREFIXES) { if (clean.startsWith(d)) return d; }
+    return '其他';
+}
+
+function getManager(name) {
+    if (MANAGER_MAP[name]) return MANAGER_MAP[name];
+    const s = stripSuffix(name);
+    if (MANAGER_MAP[s]) return MANAGER_MAP[s];
+    for (const k in MANAGER_MAP) {
+        const ks = stripSuffix(k);
+        if (name.includes(k) || k.includes(name) || s.includes(ks) || ks.includes(s)) return MANAGER_MAP[k];
+    }
+    return '';
+}
+
+function getShortName(fullName, district) {
+    let s = stripSuffix(fullName);
+    if (s.startsWith(district)) s = s.slice(district.length);
+    return s;
+}
+
+/**
+ * Build the PPT display text for merged cards.
+ *
+ * Rules:
+ * - 1 name  → return full name as-is
+ * - 2 names → single line: "海珠滨江西、海联社区"
+ * - 3+ names → ALWAYS split after the 2nd item:
+ *     Line 1: first 2 items joined with 、(no suffix)
+ *     Line 2: remaining items joined with 、(last item gets suffix)
+ *   e.g. 4 names: "海珠滨江西、海联\n新港西、江南西社区"
+ *   e.g. 3 names: "海珠滨江西、海联\n新港西社区"
+ *   e.g. 5 names: "海珠滨江西、海联\n新港西、江南西、XXX社区"
+ *
+ * District prefix is kept on the first short name only;
+ * subsequent names have the district prefix stripped.
+ */
+function buildMergedPPTText(names, district) {
+    if (names.length === 1) return names[0];
+
+    // Build short label for each name
+    const shorts = names.map((n, i) => {
+        const stem = stripSuffix(n);
+        if (i === 0) return stem; // keep district prefix on first item
+        return stem.startsWith(district) ? stem.slice(district.length) : stem;
+    });
+
+    // Determine the trailing suffix from the first name
+    const firstFull = names[0];
+    let trailSuffix = '';
+    const sortedSuffixes = [...KNOWN_SUFFIXES].sort((a, b) => b.length - a.length);
+    for (const s of sortedSuffixes) {
+        if (firstFull.endsWith(s)) { trailSuffix = s; break; }
+    }
+
+    // Build parts: only the last item gets the trailing suffix
+    const parts = shorts.map((s, i) => i === shorts.length - 1 ? s + trailSuffix : s);
+
+    // 2 items → single line
+    if (parts.length === 2) {
+        return parts.join('、');
+    }
+
+    // 3+ items → ALWAYS break after the 2nd item
+    const line1 = parts.slice(0, 2).join('、');
+    const line2 = parts.slice(2).join('、');
+    return line1 + '\n' + line2;
+}
+
+function calcMergedFontSize(count, baseFS) {
+    if (count <= 1) return baseFS;
+    if (count === 2) return Math.max(10, baseFS - 1);
+    if (count === 3) return Math.max(10, baseFS - 2);
+    return Math.max(10, baseFS - 3);
+}
+
+function buildMergedBlessing(names, bTpl, useAt) {
+    const fullDisplayNames = names.map(n => stripSuffix(n));
+    let blessing = bTpl.replace(/XXX/g, fullDisplayNames.join('、'));
+    if (useAt) {
+        const atParts = names.map(n => { const m = getManager(n); return m ? `@${m}` : null; }).filter(Boolean);
+        if (atParts.length) blessing += ' ' + atParts.join(' ');
+    }
+    return blessing;
+}
+
+// ── STATE ──
+let bgImg = null, pptW = 1280, pptH = 720, tbInfo = null;
+let genImgs = [], ocrWorker = null, ocrState = 'idle';
+let _lastOcrStems = [];
+let _bgCanvasCache = null;
+let _bgCacheScale = 0;
+
+const canvas = document.getElementById('previewCanvas');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+const GS = () => Math.max(1, Math.min(99, parseInt($('groupSizeInput').value) || 9));
+function adjGS(d) { $('groupSizeInput').value = Math.max(1, Math.min(99, GS() + d)); }
+
+// ── PROGRESS LOADER ──
+let _total = 0, _done = 0;
+function loader(show, msg = '处理中...', total = 0) {
+    $('loaderMsg').textContent = msg;
+    $('loader').classList.toggle('show', show);
+    if (show && total > 0) { _total = total; _done = 0; setProgress(0); }
+    else if (!show) { _total = 0; _done = 0; }
+}
+function loaderStep(msg) {
+    if (msg) $('loaderMsg').textContent = msg;
+    _done++;
+    if (_total > 0) setProgress(Math.min(100, Math.round(_done / _total * 100)));
+}
+function setProgress(pct) { $('loaderProgBar').style.width = pct + '%'; }
+
+// ── TOAST ──
+function toast(msg, type = '', duration = 2500) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = msg;
+    $('toastContainer').appendChild(el);
+    setTimeout(() => {
+        el.classList.add('out');
+        el.addEventListener('animationend', () => el.remove());
+    }, duration);
+}
+
+// ── OCR ──
+function setOCR(state, label) {
+    ocrState = state;
+    $('ocrPill').className = 'status-pill ' + state;
+    $('ocrDot').className = 'dot' + (state === 'idle' ? '' : ' pulse');
+    $('ocrLabel').textContent = label;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let _ocrLoadPromise = null;
+
+async function loadOCR() {
+    if (ocrState === 'ready') return true;
+    if (_ocrLoadPromise) return _ocrLoadPromise;
+    _ocrLoadPromise = _doLoadOCR();
+    try {
+        return await _ocrLoadPromise;
+    } finally {
+        _ocrLoadPromise = null;
+    }
+}
+
+async function _doLoadOCR() {
+    if (window.Tesseract && ocrWorker) {
+        ocrState = 'ready';
+        setOCR('ready', 'OCR 就绪');
+        return true;
+    }
+    setOCR('loading', 'OCR 下载引擎');
+    let timedOut = false;
+    const timeoutId = setTimeout(() => { timedOut = true; }, 120000);
+    try {
+        if (!window.Tesseract) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Tesseract.js 脚本加载失败'));
+                document.head.appendChild(s);
+            });
+        }
+        if (timedOut) { setOCR('failed', 'OCR 超时'); return false; }
+        setOCR('loading', 'OCR 加载模型');
+        ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
+            logger: m => {
+                if (timedOut) return;
+                if (m.status === 'loading tesseract core') setOCR('loading', 'OCR 加载核心');
+                else if (m.status === 'initializing tesseract') setOCR('loading', 'OCR 初始化');
+                else if (m.status === 'loading language traineddata') setOCR('loading', 'OCR 下载中文模型');
+                else if (m.status === 'initializing api') setOCR('loading', 'OCR 就绪中');
+            }
+        });
+        if (timedOut) {
+            try { await ocrWorker.terminate(); } catch (_) {}
+            ocrWorker = null;
+            setOCR('failed', 'OCR 超时');
+            return false;
+        }
+        clearTimeout(timeoutId);
+        setOCR('ready', 'OCR 就绪');
+        return true;
+    } catch (e) {
+        clearTimeout(timeoutId);
+        try { if (ocrWorker) { await ocrWorker.terminate(); } } catch (_) {}
+        ocrWorker = null;
+        setOCR('failed', 'OCR 失败');
+        return false;
+    }
+}
+
+function preloadOCR() {
+    if (ocrState !== 'idle' && ocrState !== 'failed') return;
+    if (!window.requestIdleCallback) {
+        setTimeout(() => loadOCR(), 3000);
+        return;
+    }
+    requestIdleCallback(() => {
+        if (ocrState === 'idle' || ocrState === 'failed') loadOCR();
+    }, { timeout: 5000 });
+}
+
+function preprocessImageForOCR(imageDataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const c = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                const MAX = 1800;
+                if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                c.width = w; c.height = h;
+                const cctx = c.getContext('2d');
+                cctx.drawImage(img, 0, 0, w, h);
+                const imgData = cctx.getImageData(0, 0, w, h);
+                const d = imgData.data;
+                for (let i = 0; i < d.length; i += 4) {
+                    const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                    const enhanced = Math.min(255, Math.max(0, (gray - 128) * 1.8 + 128));
+                    const binarized = enhanced > 140 ? 255 : 0;
+                    d[i] = d[i+1] = d[i+2] = binarized;
+                }
+                cctx.putImageData(imgData, 0, 0);
+                resolve(c.toDataURL('image/png'));
+            } catch (e) { reject(e); }
+        };
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = imageDataUrl;
+    });
+}
+
+// ── AI OCR ──
+const AI_PROVIDERS = {
+    waoo: { url: 'https://waooapi.com/v1/chat/completions', model: 'glm-4.7', key: 'sk-9XdvkqmK61rsgecPteBPFk3GDnSJhg8TehwglUqy8L6I3Csx' },
+    modelscope: { url: 'https://api-inference.modelscope.cn/v1/chat/completions', model: 'Qwen/Qwen3.5-35B-A3B', key: 'ms-5319f795-2928-4c3c-8799-1b3e79782969' },
+    nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions', model: 'qwen/qwen3.5-122b-a10b', key: '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', cors: true },
+    deepseek: { url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat', key: '' },
+    qwen: { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-vl-plus', key: '' },
+    custom: { url: '', model: '', key: '' }
+};
+
+function getProxiedUrl(url, provider) {
+    if (provider === 'nvidia' || (AI_PROVIDERS[provider] && AI_PROVIDERS[provider].cors)) {
+        return 'https://corsproxy.io/?' + encodeURIComponent(url);
+    }
+    return url;
+}
+
+function loadAIConfig() {
+    try {
+        const s = localStorage.getItem('ai_ocr_config');
+        if (s) return JSON.parse(s);
+    } catch (_) {}
+    return { enabled: false, provider: 'waoo', url: AI_PROVIDERS.waoo.url, key: AI_PROVIDERS.waoo.key, model: AI_PROVIDERS.waoo.model };
+}
+
+function saveAIConfigToStorage(cfg) {
+    try { localStorage.setItem('ai_ocr_config', JSON.stringify(cfg)); } catch (_) {}
+}
+
+function openAISettings() {
+    const cfg = loadAIConfig();
+    $('aiEnabled').checked = cfg.enabled;
+    $('aiProvider').value = cfg.provider || 'waoo';
+    $('aiApiUrl').value = cfg.url || '';
+    $('aiApiKey').value = cfg.key || '';
+    $('aiModel').value = cfg.model || '';
+    toggleAIEnabled();
+    $('aiSettingsModal').classList.add('open');
+}
+
+function closeAISettings() {
+    const cfg = loadAIConfig();
+    $('aiOcrBtn').style.display = cfg.enabled ? 'inline-flex' : 'none';
+    $('aiSettingsModal').classList.remove('open');
+}
+
+function toggleAIEnabled() {
+    const en = $('aiEnabled').checked;
+    const fields = $('aiFields');
+    if (en) fields.classList.remove('disabled');
+    else fields.classList.add('disabled');
+    $('aiOcrBtn').style.display = en ? 'inline-flex' : 'none';
+}
+
+function onAIProviderChange() {
+    const p = $('aiProvider').value;
+    const preset = AI_PROVIDERS[p];
+    if (preset) {
+        if (preset.url) $('aiApiUrl').value = preset.url;
+        if (preset.model) $('aiModel').value = preset.model;
+        if (preset.key) $('aiApiKey').value = preset.key;
+    }
+}
+
+function saveAISettings() {
+    const cfg = {
+        enabled: $('aiEnabled').checked,
+        provider: $('aiProvider').value,
+        url: $('aiApiUrl').value.trim(),
+        key: $('aiApiKey').value.trim(),
+        model: $('aiModel').value.trim()
+    };
+    saveAIConfigToStorage(cfg);
+    $('aiOcrBtn').style.display = cfg.enabled ? 'inline-flex' : 'none';
+    closeAISettings();
+    toast('AI设置已保存');
+}
+
+async function testAIConnection() {
+    const btn = $('aiTestBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 测试中...';
+    try {
+        const url = $('aiApiUrl').value.trim();
+        const key = $('aiApiKey').value.trim();
+        const model = $('aiModel').value.trim();
+        const provider = $('aiProvider').value;
+        if (!url || !key || !model) { toast('请先填写API地址、Key和模型'); return; }
+        const fetchUrl = getProxiedUrl(url, provider);
+        const r = await fetch(fetchUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+            body: JSON.stringify({ model, messages: [{ role: 'user', content: '回复OK' }], max_tokens: 10 })
+        });
+        if (r.ok) {
+            const d = await r.json();
+            const msg = d.choices?.[0]?.message?.content || '';
+            toast('✅ 连接成功！模型回复: ' + msg.substring(0, 50));
+        } else {
+            const t = await r.text();
+            toast('❌ 连接失败: ' + r.status + ' ' + t.substring(0, 80));
+        }
+    } catch (e) {
+        toast('❌ 网络错误: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 测试连接';
+    }
+}
+
+function compressImageForAI(imageDataUrl, maxDim) {
+    maxDim = maxDim || 1500;
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const c = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    const s = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * s); h = Math.round(h * s);
+                }
+                c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(c.toDataURL('image/jpeg', 0.85));
+            } catch (e) { reject(e); }
+        };
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = imageDataUrl;
+    });
+}
+
+async function recognizeWithAI(imageDataUrl) {
+    const cfg = loadAIConfig();
+    if (!cfg.enabled || !cfg.url || !cfg.key || !cfg.model) {
+        throw new Error('AI识别未配置，请先在设置中配置API');
+    }
+    const compressed = await compressImageForAI(imageDataUrl);
+    const base64 = compressed.split(',')[1];
+    const prompt = '请仔细识别图片中的所有营服名称（社区/网点名称），每行一个，只输出名称列表，不要加序号、标点或其他说明。如果图片中有表头，请忽略表头只输出数据行。';
+    const body = {
+        model: cfg.model,
+        messages: [{
+            role: 'user',
+            content: [
+                { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64 } },
+                { type: 'text', text: prompt }
+            ]
+        }],
+        max_tokens: 2000,
+        stream: false
+    };
+    const fetchUrl = getProxiedUrl(cfg.url, cfg.provider);
+    const r = await fetch(fetchUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+        body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+        const t = await r.text();
+        throw new Error('AI请求失败: ' + r.status + ' ' + t.substring(0, 100));
+    }
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content || '';
+}
+
+function handleAIClick() {
+    const cfg = loadAIConfig();
+    if (!cfg.enabled) { toast('请先在设置中启用AI识别'); return; }
+    if (!cfg.url || !cfg.key || !cfg.model) { toast('请先在设置中配置API'); openAISettings(); return; }
+    $('aiFileInput').click();
+}
+
+async function handleAIFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const btn = $('aiOcrBtn');
+    btn.disabled = true;
+    btn.textContent = '🤖 AI识别中...';
+    try {
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('图片读取失败'));
+            reader.readAsDataURL(file);
+        });
+        const text = await recognizeWithAI(dataUrl);
+        const rawLines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+        const suffix = $('ocrSuffixInp').value.trim() || '社区';
+        const processedLines = rawLines.map(l => {
+            const cleaned = l.replace(/^[\s\d.、\-•*]+/, '').trim();
+            return normaliseSuffix(cleaned, suffix);
+        }).filter(Boolean);
+        const correctedRaw = applyOCRCorrections(text);
+        showOcrReview(correctedRaw, processedLines, rawLines.length);
+    } catch (err) {
+        toast('AI识别失败: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 AI 识图';
+    }
+}
+
+async function handleOCRClick() {
+    if (ocrState === 'ready') {
+        $('ocrFileInput').click();
+        return;
+    }
+    if (ocrState === 'failed') {
+        setOCR('idle', 'OCR 待机');
+    }
+    loader(true, 'OCR 引擎加载中，首次需下载模型（约18MB）...');
+    const ok = await loadOCR();
+    loader(false);
+    if (!ok) { toast('OCR 引擎加载失败，请检查网络后重试', 'error', 4000); return; }
+    $('ocrFileInput').click();
+}
+
+// ── OCR POST-PROCESSING ──
+function processOCRLines(rawText) {
+    rawText = applyOCRCorrections(rawText);
+    const rawLines = rawText.split('\n')
+        .map(l => l.replace(/\s+/g, '').trim())
+        .filter(l => l.length > 0);
+
+    const CONTINUATION_STARTERS = /^(区营服|营服|社区营服|区$|社区$)/;
+    const SUFFIX_ONLY = /^[区社营服]+$/;
+
+    const merged = [];
+    let i = 0;
+    while (i < rawLines.length) {
+        const cur = rawLines[i];
+        const next = rawLines[i + 1] || '';
+        if (
+            next &&
+            !cur.endsWith('营服') && !cur.endsWith('社区') && !cur.endsWith('社区营服') &&
+            CONTINUATION_STARTERS.test(next) &&
+            cur.length <= 10
+        ) {
+            merged.push(cur + next);
+            i += 2;
+        } else {
+            merged.push(cur);
+            i += 1;
+        }
+    }
+
+    const JUNK_LINE = /^[\d\s\-_.,，。、|｜/\\]+$/;
+    const MIN_LEN = 3;
+    const seen = new Set();
+    const stems = [];
+
+    for (let name of merged) {
+        name = name.replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, '');
+        if (!name || name.length < MIN_LEN) continue;
+        if (JUNK_LINE.test(name)) continue;
+        if (SUFFIX_ONLY.test(name)) continue;
+
+        const stem = stripSuffix(name);
+        if (!stem || stem.length < 2) continue;
+
+        const hasDistrict = DISTRICT_PREFIXES.some(d => stem.startsWith(d));
+        const looksValid = stem.length >= 3 && /^[\u4e00-\u9fa5]/.test(stem);
+        if (!hasDistrict && !looksValid) continue;
+
+        if (!seen.has(stem)) {
+            seen.add(stem);
+            stems.push(stem);
+        }
+    }
+
+    return stems;
+}
+
+function applyOcrSuffix() {
+    const suffix = $('ocrSuffixInp').value.trim() || '社区';
+    if (!_lastOcrStems.length) return;
+    const lines = _lastOcrStems
+        .map(stem => normaliseSuffix(stem, suffix))
+        .filter(Boolean);
+    $('ocrResultTa').value = lines.join('\n');
+    updateOcrStats(lines);
+    toast(`后缀已统一为「${suffix}」，共 ${lines.length} 条`, 'success', 1800);
+}
+
+function updateOcrStats(lines) {
+    const validCount = lines.length;
+    const knownCount = lines.filter(n => DISTRICT_PREFIXES.some(d => n.startsWith(d))).length;
+    const unknownCount = validCount - knownCount;
+    const filtered = (_lastOcrStems._rawLineCount || 0) - validCount;
+
+    $('ocrStatsRow').innerHTML = `
+        <span class="ocr-stat green">✓ 识别 ${validCount} 条</span>
+        ${filtered > 0 ? `<span class="ocr-stat amber">过滤 ${filtered} 行噪声</span>` : ''}
+        ${unknownCount > 0 ? `<span class="ocr-stat red">⚠ ${unknownCount} 条待核实</span>` : ''}
+    `;
+}
+
+$('aiFileInput').addEventListener('change', handleAIFileSelect);
+$('ocrFileInput').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    if (!ocrWorker) {
+        toast('OCR 引擎未就绪，请重新点击 OCR 按钮', 'error', 3000);
+        e.target.value = '';
+        return;
+    }
+    loader(true, '预处理图片中...');
+    try {
+        const du = await resizeImg(file);
+        const processed = await preprocessImageForOCR(du);
+        loader(true, 'AI 识别中...');
+        const ret = await ocrWorker.recognize(processed);
+        const rawText = ret.data.text;
+
+        const stems = processOCRLines(rawText);
+        const rawLineCount = rawText.split('\n').filter(l => l.trim()).length;
+        stems._rawLineCount = rawLineCount;
+        _lastOcrStems = stems;
+
+        const suffix = $('ocrSuffixInp').value.trim() || '社区';
+        const processedLines = stems.map(s => normaliseSuffix(s, suffix)).filter(Boolean);
+
+        loader(false);
+        const correctedRaw = applyOCRCorrections(rawText);
+        showOcrReview(correctedRaw, processedLines, rawLineCount);
+
+    } catch (err) { toast('OCR 识别失败: ' + err.message, 'error', 4000); loader(false); }
+    finally { e.target.value = ''; }
+});
+
+function showOcrReview(rawText, processedLines, rawLineCount) {
+    $('ocrRawBox').textContent = rawText;
+    $('ocrResultTa').value = processedLines.join('\n');
+
+    const validCount = processedLines.length;
+    const filtered = rawLineCount - validCount;
+    const knownCount = processedLines.filter(n => DISTRICT_PREFIXES.some(d => n.startsWith(d))).length;
+    const unknownCount = validCount - knownCount;
+
+    $('ocrStatsRow').innerHTML = `
+        <span class="ocr-stat green">✓ 识别 ${validCount} 条</span>
+        ${filtered > 0 ? `<span class="ocr-stat amber">过滤 ${filtered} 行噪声</span>` : ''}
+        ${unknownCount > 0 ? `<span class="ocr-stat red">⚠ ${unknownCount} 条待核实</span>` : ''}
+    `;
+
+    $('ocrReviewModal').classList.add('open');
+}
+
+function closeOcrReview() {
+    $('ocrReviewModal').classList.remove('open');
+}
+
+function confirmOcrResult() {
+    const lines = $('ocrResultTa').value
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+
+    if (!lines.length) {
+        toast('没有有效的营服名称', 'error');
+        return;
+    }
+
+    const existing = $('textList').value.trim();
+    $('textList').value = existing ? existing + '\n' + lines.join('\n') : lines.join('\n');
+    updateCount();
+
+    if (lines.length && bgImg) renderPreview(lines[0]);
+
+    closeOcrReview();
+    toast(`已导入 ${lines.length} 个营服名称`, 'success');
+}
+
+function resizeImg(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(objUrl);
+            const c = document.createElement('canvas'), MAX = 2000;
+            let w = img.width, h = img.height;
+            if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+            c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('图片加载失败')); };
+        img.src = objUrl;
+    });
+}
+
+// ── DRAG & DROP for PPTX ──
+const dz = $('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.pptx')) handlePPTFile(file);
+    else toast('请上传 .pptx 文件', 'error');
+});
+
+// ── PPTX PARSE ──
+$('pptInput').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    handlePPTFile(file);
+    e.target.value = '';
+});
+
+async function handlePPTFile(file) {
+    loader(true, '解析 PPTX 模板...');
+    try {
+        const buf = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buf);
+        const slideXml = await zip.file('ppt/slides/slide1.xml').async('string');
+        const doc = new DOMParser().parseFromString(slideXml, 'text/xml');
+        const TARGET = '营服名称';
+        let sp = null;
+        for (const el of doc.getElementsByTagName('*')) {
+            if (el.localName !== 'p') continue;
+            let txt = '';
+            for (const t of el.getElementsByTagName('*')) if (t.localName === 't') txt += t.textContent;
+            if (txt.replace(/\s/g, '').includes(TARGET)) {
+                let node = el;
+                while (node) { if (node.localName === 'sp') { sp = node; break; } node = node.parentNode; }
+                if (sp) break;
+            }
+        }
+        if (!sp) throw new Error('首页未找到「营服名称」占位符。');
+        const xfrm = fc(fc(sp, 'spPr'), 'xfrm');
+        const off = fc(xfrm, 'off'), ext = fc(xfrm, 'ext');
+        if (!off || !ext) throw new Error('无法读取文本框坐标。');
+        const presDoc = new DOMParser().parseFromString(await zip.file('ppt/presentation.xml').async('string'), 'text/xml');
+        let sldSz = null;
+        for (const el of presDoc.getElementsByTagName('*')) { if (el.localName === 'sldSz') { sldSz = el; break; } }
+        const EMU = 96 / 914400;
+        pptW = parseInt(sldSz.getAttribute('cx')) * EMU;
+        pptH = parseInt(sldSz.getAttribute('cy')) * EMU;
+        let fs = 20, color = '#c00000';
+        try {
+            const txBody = fc(sp, 'txBody'), pEl = txBody ? fc(txBody, 'p') : null;
+            if (pEl) {
+                for (const r of pEl.getElementsByTagName('*')) {
+                    if (r.localName !== 'rPr') continue;
+                    const sz = r.getAttribute('sz'); if (sz) fs = parseInt(sz) / 100 * 1.33;
+                    const sf = fc(r, 'solidFill');
+                    if (sf) { const sc = fc(sf, 'srgbClr'); if (sc) color = '#' + sc.getAttribute('val'); }
+                    break;
+                }
+            }
+        } catch (_) {}
+        tbInfo = {
+            x: parseInt(off.getAttribute('x')) * EMU, y: parseInt(off.getAttribute('y')) * EMU,
+            w: parseInt(ext.getAttribute('cx')) * EMU, h: parseInt(ext.getAttribute('cy')) * EMU,
+            fontSize: fs, color
+        };
+        let bgB64 = null;
+        const media = zip.folder('ppt/media');
+        let best = { name: '', size: 0 };
+        if (media) media.forEach((path, f) => {
+            if (/\.(jpe?g|png)$/i.test(path) && f._data?.uncompressedSize > best.size)
+                best = { name: path, size: f._data.uncompressedSize };
+        });
+        if (best.name) {
+            const b64 = await media.file(best.name).async('base64');
+            const ext2 = best.name.split('.').pop().toLowerCase().replace('jpg', 'jpeg');
+            bgB64 = `data:image/${ext2};base64,${b64}`;
+        }
+        if (!bgB64) { try { bgB64 = 'data:image/jpeg;base64,' + await zip.file('docProps/thumbnail.jpeg').async('base64'); } catch (_) {} }
+        if (!bgB64) throw new Error('无法提取背景图。');
+        bgImg = new Image();
+        bgImg.onload = () => {
+            invalidateBgCache();
+            $('dropZone').style.display = 'none';
+            const ft = $('fileTag'); ft.style.display = 'flex';
+            $('tagName').textContent = file.name;
+            $('previewEmpty').style.display = 'none';
+            canvas.style.display = 'block';
+            renderPreview('营服名称');
+            updateGenBtn();
+            toast('模板加载成功 ✓', 'success');
+        };
+        bgImg.src = bgB64;
+    } catch (err) { toast('解析失败：' + err.message, 'error', 5000); }
+    finally { loader(false); }
+}
+
+function fc(p, n) {
+    if (!p) return null;
+    for (let i = 0; i < p.children.length; i++) if (p.children[i].localName === n) return p.children[i];
+    return null;
+}
+
+// ── RENDER ──
+function renderTextOnCanvas(octx, text, tb, scale, overrideFontSize) {
+    const lines = text.split('\n');
+    const W = tb.w * scale;
+    const CX = (tb.x + tb.w / 2) * scale;
+    const TY = tb.y * scale;
+    const TH = tb.h * scale;
+    octx.fillStyle = tb.color;
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    const baseFS = (overrideFontSize || tb.fontSize) * scale;
+    let fs = baseFS;
+    const fontStr = sz => `900 ${sz}px "SimHei","STHeiti","Microsoft YaHei",sans-serif`;
+    octx.font = fontStr(fs);
+    let maxW = Math.max(...lines.map(l => octx.measureText(l).width));
+    while (maxW > W * 0.96 && fs > 8) {
+        fs -= 0.5; octx.font = fontStr(fs);
+        maxW = Math.max(...lines.map(l => octx.measureText(l).width));
+    }
+    const lineH = fs * 1.35;
+    const totalH = lineH * lines.length;
+    const startY = TY + TH / 2 - totalH / 2 + lineH / 2;
+    lines.forEach((line, i) => { octx.fillText(line, CX, startY + i * lineH); });
+}
+
+function renderPreview(text, overrideFS) {
+    if (!bgImg) return;
+    canvas.width = pptW; canvas.height = pptH;
+    ctx.drawImage(bgImg, 0, 0, pptW, pptH);
+    if (tbInfo) renderTextOnCanvas(ctx, text, tbInfo, 1, overrideFS || tbInfo.fontSize);
+    const frame = document.querySelector('.preview-frame');
+    const scale = Math.min(1, (frame.clientWidth - 24) / pptW);
+    canvas.style.width = (pptW * scale) + 'px'; canvas.style.height = (pptH * scale) + 'px';
+}
+
+let _resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+        if (bgImg && tbInfo) renderPreview('营服名称');
+    }, 150);
+});
+
+function renderHiRes(text, overrideFS, S = 2) {
+    if (!_bgCanvasCache || _bgCacheScale !== S) {
+        _bgCanvasCache = document.createElement('canvas');
+        _bgCanvasCache.width = pptW * S;
+        _bgCanvasCache.height = pptH * S;
+        const bgCtx = _bgCanvasCache.getContext('2d');
+        bgCtx.drawImage(bgImg, 0, 0, _bgCanvasCache.width, _bgCanvasCache.height);
+        _bgCacheScale = S;
+    }
+    const oc = document.createElement('canvas');
+    oc.width = pptW * S; oc.height = pptH * S;
+    const octx = oc.getContext('2d');
+    octx.drawImage(_bgCanvasCache, 0, 0);
+    if (tbInfo) renderTextOnCanvas(octx, text, tbInfo, S, overrideFS || tbInfo.fontSize);
+    return oc.toDataURL('image/png');
+}
+
+function invalidateBgCache() {
+    _bgCanvasCache = null;
+    _bgCacheScale = 0;
+}
+
+function getLines() { return $('textList').value.split('\n').map(l => l.trim()).filter(Boolean); }
+function updateCount() {
+    const n = getLines().length;
+    const chip = $('lineCount');
+    chip.textContent = n + ' 行';
+    chip.className = 'count-chip' + (n > 0 ? ' has-data' : '');
+    updateGenBtn();
+}
+function updateGenBtn() { $('genBtn').disabled = !bgImg || !getLines().length; }
+
+function groupByDistrict(lines) {
+    const order = [], map = {};
+    for (const name of lines) {
+        const d = getDistrict(name);
+        if (!map[d]) { map[d] = []; order.push(d); }
+        map[d].push(name);
+    }
+    return order.map(d => ({ district: d, names: map[d] }));
+}
+
+// ── MAIN GENERATION ──
+async function startGen() {
+    const lines = getLines(); if (!lines.length || !bgImg) return;
+    const GROUP_SIZE = GS();
+    const doMerge = $('mergeToggle').checked;
+    const bTpl = $('blessingTpl').value || '恭喜XXX营服当日高套封闭[庆祝][庆祝][庆祝]';
+    const useAt = $('atToggle').checked;
+
+    genImgs = [];
+    $('resultsSection').style.display = 'block';
+    $('gcHint').textContent = GROUP_SIZE;
+    const cardList = $('cardList');
+    cardList.innerHTML = '';
+
+    const total = doMerge ? groupByDistrict(lines).length : lines.length;
+    loader(true, '初始化...', total);
+
+    if (doMerge) {
+        await genMerged(lines, bTpl, useAt, GROUP_SIZE, cardList);
+    } else {
+        await genNormal(lines, bTpl, useAt, GROUP_SIZE, cardList);
+    }
+
+    buildGCopy(genImgs.length, GROUP_SIZE);
+    $('resultCnt').textContent = genImgs.length;
+    renderPreview(lines[lines.length - 1]);
+    loader(false);
+    toast(`生成完成！共 ${genImgs.length} 张图片`, 'success');
+    $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function genNormal(lines, bTpl, useAt, GROUP_SIZE, cardList) {
+    let groupIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const name = lines[i];
+        loaderStep(`渲染 ${i + 1}/${lines.length}：${name}`);
+        const dataUrl = renderHiRes(name);
+        const clean = stripSuffix(name);
+        let bl = bTpl.replace(/XXX/g, clean);
+        if (useAt) { const m = getManager(name); if (m) bl += ` @${m}`; }
+        genImgs.push({ name: name + '.png', dataUrl, blessing: bl });
+        if (i % GROUP_SIZE === 0) {
+            groupIdx++;
+            const gs = i + 1, ge = Math.min(i + GROUP_SIZE, lines.length);
+            appendGroupDiv(cardList, groupIdx, gs, ge);
+        }
+        appendCard(cardList, i, name, dataUrl, bl, false, null);
+        if (i % 3 === 2) await new Promise(r => requestAnimationFrame(r));
+    }
+}
+
+async function genMerged(lines, bTpl, useAt, GROUP_SIZE, cardList) {
+    const groups = groupByDistrict(lines);
+    let idx = 0, groupIdx = 0;
+
+    for (const grp of groups) {
+        const dd = document.createElement('div');
+        dd.className = 'district-div';
+        dd.innerHTML = `<div class="district-line"></div><div class="district-badge">🏙️ ${grp.district} · ${grp.names.length} 个营服</div><div class="district-line"></div>`;
+        cardList.appendChild(dd);
+
+        const { names, district } = grp;
+
+        if (names.length === 1) {
+            const name = names[0];
+            loaderStep(`渲染：${name}`);
+            const dataUrl = renderHiRes(name);
+            const clean = stripSuffix(name);
+            let bl = bTpl.replace(/XXX/g, clean);
+            if (useAt) { const m = getManager(name); if (m) bl += ` @${m}`; }
+            genImgs.push({ name: name + '.png', dataUrl, blessing: bl });
+            if (idx % GROUP_SIZE === 0) {
+                groupIdx++;
+                const gs = idx + 1, ge = Math.min(idx + GROUP_SIZE, groups.length);
+                appendGroupDiv(cardList, groupIdx, gs, ge);
+            }
+            appendCard(cardList, idx, name, dataUrl, bl, false, null);
+            idx++;
+        } else {
+            const pptText = buildMergedPPTText(names, district);
+            const fontSize = calcMergedFontSize(names.length, tbInfo.fontSize);
+            const fileLabel = district + '合并';
+            loaderStep(`渲染 ${district} ${names.length} 个营服合并`);
+            const dataUrl = renderHiRes(pptText, fontSize);
+            const combinedBlessing = buildMergedBlessing(names, bTpl, useAt);
+            genImgs.push({ name: fileLabel + '.png', dataUrl, blessing: combinedBlessing });
+            if (idx % GROUP_SIZE === 0) {
+                groupIdx++;
+                const gs = idx + 1, ge = Math.min(idx + GROUP_SIZE, groups.length);
+                appendGroupDiv(cardList, groupIdx, gs, ge);
+            }
+            appendCard(cardList, idx, fileLabel, dataUrl, combinedBlessing, true, names);
+            idx++;
+            await sleep(0);
+        }
+    }
+}
+
+function appendGroupDiv(container, gn, gs, ge) {
+    const d = document.createElement('div');
+    d.className = 'grp-div';
+    d.innerHTML = `<div class="grp-line"></div><div class="grp-text">第 ${gn} 组 · ${gs}–${ge} 条</div><div class="grp-line"></div>`;
+    container.appendChild(d);
+}
+
+function appendCard(container, i, label, dataUrl, blessing, isMerged, mergedNames) {
+    const iid = `img_${i}`;
+    const card = document.createElement('div');
+    card.className = 'fwd-card' + (isMerged ? ' merged-card' : '');
+    card.style.animationDelay = Math.min(i * 30, 300) + 'ms';
+
+    const mergedBadge = isMerged && mergedNames
+        ? `<span class="merged-badge">🗂️ 合并 ${mergedNames.length} 营服</span>` : '';
+    const metaNames = isMerged && mergedNames
+        ? mergedNames.map(n => stripSuffix(n)).join('、') : '';
+    const blessingHtml = esc(blessing).replace(/\n/g, '<br>');
+
+    card.innerHTML = `
+        <div class="card-thumb" onclick="openModal('${iid}')">
+            <img id="${iid}" src="${dataUrl}" loading="lazy" onload="this.classList.add('loaded')">
+            <div class="thumb-skeleton"></div>
+            <div class="thumb-ov"><span class="zoom-tip">🔍 放大</span></div>
+        </div>
+        <div class="card-body">
+            <div>
+                <div class="card-meta">第 ${i+1} 条${mergedBadge}</div>
+                ${metaNames ? `<div class="card-meta-names">${esc(metaNames)}</div>` : ''}
+            </div>
+            <div class="blessing-box" id="b${i}">${blessingHtml}</div>
+            <div class="card-actions">
+                <button class="copy-btn" id="cb${i}" onclick="copyText(${i})">💬 复制祝福语</button>
+                <button class="copy-btn copy-img-btn" id="ci${i}" onclick="copyImgOnly(${i})">🖼️ 复制图片</button>
+                <button class="copy-combo-btn" id="cc${i}" onclick="copyCombo(${i})">🖼️＋💬 一键复制图片＋祝福语</button>
+                <button class="share-btn" id="sh${i}" onclick="shareItem(${i})" ${(navigator.canShare && navigator.share) ? 'supported' : ''}>📤 分享到微信</button>
+            </div>
+        </div>`;
+    container.appendChild(card);
+}
+
+// ── COPY HELPERS ──
+function copyText(i) {
+    const btn = $('cb' + i);
+    const txt = genImgs[i].blessing;
+    navigator.clipboard.writeText(txt)
+        .then(() => { flash(btn, '✅ 已复制', 1800); toast('祝福语已复制', 'success', 1500); })
+        .catch(() => {
+            const el = $('b' + i);
+            const r = document.createRange(); r.selectNodeContents(el);
+            const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+            document.execCommand('copy');
+            flash(btn, '✅ 已复制', 1800);
+        });
+}
+
+async function copyImgOnly(i) {
+    const btn = $('ci' + i);
+    if (navigator.clipboard && window.ClipboardItem) {
+        btn.disabled = true;
+        try {
+            const blob = await dataUrlToBlob(genImgs[i].dataUrl);
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            flash(btn, '✅ 图片已复制', 1800);
+            toast('图片已复制到剪贴板', 'success', 1500);
+        } catch (_) {
+            triggerDownload(i);
+            flash(btn, '💾 已下载', 1800);
+            toast('浏览器不支持复制图片，已自动下载', '', 3000);
+        } finally { btn.disabled = false; }
+    } else {
+        triggerDownload(i);
+        flash(btn, '💾 已下载', 1800);
+    }
+}
+
+async function copyCombo(i) {
+    const btn = $('cc' + i);
+    const item = genImgs[i];
+    btn.disabled = true; btn.textContent = '⏳ 复制中...';
+    try {
+        const cx = await compress(item.dataUrl, 800);
+        const blessingHtml = esc(item.blessing).replace(/\n/g, '<br>');
+        const html = `<div style="font-family:sans-serif;">
+            <img src="${cx}" style="max-width:600px;width:100%;border-radius:8px;display:block;">
+            <p style="margin-top:9px;font-size:15px;line-height:1.8;color:#333;">${blessingHtml}</p>
+        </div>`;
+        const plain = item.blessing;
+        if (navigator.clipboard?.write) {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html':  new Blob([html],  { type: 'text/html' }),
+                'text/plain': new Blob([plain], { type: 'text/plain' })
+            })]);
+        } else {
+            const d = document.createElement('div');
+            d.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+            d.innerHTML = html; document.body.appendChild(d);
+            const sel = window.getSelection(), r = document.createRange();
+            r.selectNodeContents(d); sel.removeAllRanges(); sel.addRange(r);
+            document.execCommand('copy'); sel.removeAllRanges(); document.body.removeChild(d);
+        }
+        btn.classList.add('done');
+        btn.textContent = '✅ 已复制！直接粘贴到微信';
+        toast('图片＋祝福语已复制，直接粘贴到微信！', 'success', 3000);
+        setTimeout(() => { btn.classList.remove('done'); btn.textContent = '🖼️＋💬 一键复制图片＋祝福语'; btn.disabled = false; }, 3000);
+    } catch (err) {
+        triggerDownload(i);
+        try { await navigator.clipboard.writeText(item.blessing); } catch (_) {}
+        btn.textContent = '✅ 图片已下载，祝福语已复制';
+        toast('图片已下载，祝福语已复制', '', 3000);
+        setTimeout(() => { btn.textContent = '🖼️＋💬 一键复制图片＋祝福语'; btn.disabled = false; }, 3000);
+    }
+}
+
+function triggerDownload(i) {
+    const a = document.createElement('a');
+    a.href = genImgs[i].dataUrl; a.download = genImgs[i].name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function flash(btn, label, duration = 1800) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = label; btn.classList.add('done'); btn.disabled = false;
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('done'); }, duration);
+}
+
+function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(parts[1] || '');
+    const u8 = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    return Promise.resolve(new Blob([u8], { type: mime }));
+}
+
+async function shareItem(i) {
+    if (!navigator.canShare || !navigator.share) {
+        toast('当前浏览器不支持分享，请使用复制功能', 'error', 3000);
+        return;
+    }
+    const btn = $('sh' + i);
+    const item = genImgs[i];
+    btn.disabled = true; btn.textContent = '⏳ 准备分享...';
+    try {
+        const blob = await dataUrlToBlob(item.dataUrl);
+        const file = new File([blob], item.name, { type: 'image/png' });
+        const shareData = { files: [file], text: item.blessing, title: item.name.replace('.png', '') };
+        if (!navigator.canShare(shareData)) {
+            toast('当前浏览器不支持分享文件，请使用复制功能', 'error', 3000);
+            btn.textContent = '📤 分享到微信'; btn.disabled = false;
+            return;
+        }
+        await navigator.share(shareData);
+        btn.classList.add('done');
+        btn.textContent = '✅ 已分享';
+        toast('分享成功！', 'success', 2000);
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            toast('分享失败：' + err.message, 'error', 3000);
+        }
+    } finally {
+        setTimeout(() => {
+            btn.classList.remove('done');
+            btn.textContent = '📤 分享到微信';
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+async function shareGroup(g, GRP) {
+    if (!navigator.canShare || !navigator.share) {
+        toast('当前浏览器不支持分享，请使用复制功能', 'error', 3000);
+        return;
+    }
+    const s = g * GRP, e = Math.min(s + GRP, genImgs.length);
+    const items = genImgs.slice(s, e); if (!items.length) return;
+    const btn = $(`gsb_${g}`), orig = btn ? btn.innerHTML : `📤 第${g+1}组分享`;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 准备分享...'; }
+    try {
+        const files = [];
+        for (const item of items) {
+            const blob = await dataUrlToBlob(item.dataUrl);
+            files.push(new File([blob], item.name, { type: 'image/png' }));
+        }
+        const allBlessings = items.map(it => `【${it.name.replace('.png','')}】${it.blessing}`).join('\n');
+        await navigator.share({
+            files: files,
+            text: allBlessings,
+            title: `营服PPT 第${g+1}组`
+        });
+        if (btn) { btn.innerHTML = `✅ 第${g+1}组已分享`; btn.classList.add('done'); }
+        toast(`第${g+1}组分享成功！`, 'success', 3000);
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            toast('分享失败：' + err.message, 'error', 3000);
+        }
+    } finally {
+        setTimeout(() => { if (btn) { btn.innerHTML = orig; btn.classList.remove('done'); btn.disabled = false; } }, 3000);
+    }
+}
+
+function compress(url, mw) {
+    return new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const c = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > mw) { h = Math.round(h * mw / w); w = mw; }
+                c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
+                res(c.toDataURL('image/jpeg', 0.75));
+            } catch(e) { rej(e); }
+        };
+        img.onerror = () => rej(new Error('图片压缩加载失败'));
+        img.src = url;
+    });
+}
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function buildGCopy(total, GRP) {
+    const panel = $('gcopyPanel'), row = $('gcopyBtns');
+    row.innerHTML = ''; panel.style.display = 'block';
+    const canShare = !!(navigator.canShare && navigator.share);
+    for (let g = 0; g < Math.ceil(total / GRP); g++) {
+        const s = g * GRP, e = Math.min(s + GRP, total);
+        const btn = document.createElement('button');
+        btn.className = 'gcopy-btn'; btn.id = `gcb_${g}`;
+        btn.innerHTML = `📱 第${g+1}组 <span style="opacity:.6;font-size:10.5px">${s+1}–${e}条·${e-s}张</span>`;
+        btn.onclick = () => copyGroup(g, GRP);
+        row.appendChild(btn);
+        if (canShare) {
+            const sbtn = document.createElement('button');
+            sbtn.className = 'gcopy-btn';
+            sbtn.id = `gsb_${g}`;
+            sbtn.style.borderColor = 'rgba(94,191,160,.4)';
+            sbtn.style.background = 'linear-gradient(135deg, var(--green-light), var(--blue-light))';
+            sbtn.innerHTML = `📤 第${g+1}组分享 <span style="opacity:.6;font-size:10.5px">微信</span>`;
+            sbtn.onclick = () => shareGroup(g, GRP);
+            row.appendChild(sbtn);
+        }
+    }
+}
+
+async function copyGroup(g, GRP) {
+    const s = g * GRP, e = Math.min(s + GRP, genImgs.length);
+    const items = genImgs.slice(s, e); if (!items.length) return;
+    const btn = $(`gcb_${g}`), orig = btn.innerHTML;
+    btn.disabled = true; btn.textContent = '⏳ 整合中...';
+    try {
+        let html = '<div style="font-family:sans-serif;">';
+        for (const item of items) {
+            const cx = await compress(item.dataUrl, 800);
+            const blessingHtml = item.blessing ? esc(item.blessing).replace(/\n/g, '<br>') : '';
+            html += `<div style="margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #f0e0ea;">
+                <img src="${cx}" style="max-width:600px;width:100%;border-radius:8px;display:block;">
+                ${blessingHtml ? `<p style="margin-top:9px;font-size:15px;line-height:1.8;color:#333;">${blessingHtml}</p>` : ''}
+            </div>`;
+        }
+        html += '</div>';
+        const plain = items.filter(it => it.blessing).map(it => `【${it.name.replace('.png','')}】\n${it.blessing}`).join('\n\n---\n\n');
+        if (navigator.clipboard?.write) {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([plain], { type: 'text/plain' })
+            })]);
+        } else {
+            const d = document.createElement('div');
+            d.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+            d.innerHTML = html; document.body.appendChild(d);
+            const sel = window.getSelection(), r = document.createRange();
+            r.selectNodeContents(d); sel.removeAllRanges(); sel.addRange(r);
+            document.execCommand('copy'); sel.removeAllRanges(); document.body.removeChild(d);
+        }
+        btn.innerHTML = `✅ 第${g+1}组已复制`;
+        btn.classList.add('done');
+        toast(`第${g+1}组已复制，粘贴到微信即发`, 'success', 3000);
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('done'); btn.disabled = false; }, 4000);
+    } catch (err) {
+        btn.innerHTML = orig; btn.disabled = false;
+        toast('复制失败：' + err.message + '，请使用打包ZIP', 'error', 4000);
+    }
+}
+
+async function downloadZip() {
+    if (!genImgs.length) return;
+    loader(true, '打包中...', genImgs.length);
+    const zip = new JSZip(), folder = zip.folder('营服图片');
+    genImgs.forEach((img, i) => {
+        folder.file(img.name, img.dataUrl.split(',')[1], { base64: true });
+        loaderStep();
+    });
+    const blob = await zip.generateAsync({ type: 'blob' }, meta => {
+        setProgress(Math.round(meta.percent));
+    });
+    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: '营服PPT批量生成.zip' }).click();
+    loader(false);
+    toast(`已下载 ${genImgs.length} 张图片的 ZIP 包`, 'success');
+}
+
+function openModal(id) {
+    const src = $(id)?.src; if (!src) return;
+    $('modalImg').src = src; $('modal').classList.add('open');
+}
+function closeModal() { $('modal').classList.remove('open'); $('modalImg').src = ''; }
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeMgrModal(); closeOcrReview(); }
+});
+$('textList').addEventListener('input', updateCount);
+
+preloadOCR();
+(function initAI() {
+    const cfg = loadAIConfig();
+    if (cfg.enabled) $('aiOcrBtn').style.display = 'inline-flex';
+})();
+
+// ══════════════════════════════════════════════════════
+// ── MANAGER MODAL LOGIC ──
+// ══════════════════════════════════════════════════════
+
+let mgrEditRows = [];
+let mgrPendingImport = null;
+
+function openMgrModal() {
+    pendingMap = Object.assign({}, MANAGER_MAP);
+    mgrEditRows = Object.entries(pendingMap).map(([name, manager]) => ({ name, manager, isNew: false }));
+    mgrEditRows.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+
+    switchMgrTab('upload');
+    renderEditTable();
+    updateMgrCounts();
+    mgrPendingImport = null;
+    $('uploadResult').style.display = 'none';
+    $('mgrModal').classList.add('open');
+}
+
+function closeMgrModal() { $('mgrModal').classList.remove('open'); mgrPendingImport = null; }
+
+function handleMgrOverlayClick(e) {
+    if (e.target === $('mgrModal')) closeMgrModal();
+}
+
+function switchMgrTab(tab) {
+    document.querySelectorAll('.mgr-tab').forEach((t, i) => {
+        const tabs = ['upload', 'edit', 'export'];
+        t.classList.toggle('active', tabs[i] === tab);
+    });
+    ['upload', 'edit', 'export'].forEach(t => {
+        $(`mgrTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('active', t === tab);
+    });
+    if (tab === 'edit') { renderEditTable(); updateMgrCounts(); }
+}
+
+function updateMgrCounts() {
+    const cnt = mgrEditRows.length;
+    $('mgrCntDisplay').textContent = cnt;
+    $('mgrActiveCount').textContent = cnt;
+    $('editCntBadge').textContent = cnt + ' 条';
+}
+
+function renderEditTable(filter = '') {
+    const tbody = $('editTbody');
+    tbody.innerHTML = '';
+    const q = filter.trim().toLowerCase();
+    let shown = 0;
+    mgrEditRows.forEach((row, idx) => {
+        if (q && !row.name.toLowerCase().includes(q) && !row.manager.toLowerCase().includes(q)) return;
+        shown++;
+        const district = getDistrictFromName(row.name);
+        const tr = document.createElement('tr');
+        if (row.isNew) tr.className = 'new-row';
+        tr.innerHTML = `
+            <td><input class="tbl-inp" value="${esc(row.name)}" onchange="updateRow(${idx},'name',this.value)" placeholder="营服名称"></td>
+            <td><span class="district-tag">${district || '—'}</span></td>
+            <td><input class="tbl-inp" value="${esc(row.manager)}" onchange="updateRow(${idx},'manager',this.value)" placeholder="经理姓名"></td>
+            <td><button class="tbl-del" onclick="deleteRow(${idx})" title="删除">🗑</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    if (shown === 0) {
+        tbody.innerHTML = `<tr><td colspan="4"><div class="no-rows">${q ? '没有匹配结果' : '暂无数据'}</div></td></tr>`;
+    }
+    updateMgrCounts();
+}
+
+function getDistrictFromName(name) {
+    const clean = stripSuffix(name);
+    for (const d of DISTRICT_PREFIXES) { if (clean.startsWith(d)) return d; }
+    return '';
+}
+
+function filterTable() {
+    renderEditTable($('editSearch').value);
+}
+
+function updateRow(idx, field, val) {
+    mgrEditRows[idx][field] = val.trim();
+}
+
+function deleteRow(idx) {
+    mgrEditRows.splice(idx, 1);
+    renderEditTable($('editSearch').value);
+}
+
+function addNewRow() {
+    mgrEditRows.unshift({ name: '', manager: '', isNew: true });
+    $('editSearch').value = '';
+    renderEditTable('');
+    setTimeout(() => {
+        const firstInp = $('editTbody').querySelector('.tbl-inp');
+        if (firstInp) firstInp.focus();
+    }, 50);
+}
+
+// ── FILE UPLOAD PARSING ──
+const mgrDz = $('mgrDropzone');
+mgrDz.addEventListener('dragover', e => { e.preventDefault(); mgrDz.classList.add('drag-over'); });
+mgrDz.addEventListener('dragleave', () => mgrDz.classList.remove('drag-over'));
+mgrDz.addEventListener('drop', e => {
+    e.preventDefault(); mgrDz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0]; if (file) parseMgrFile(file);
+});
+$('mgrFileInput').addEventListener('change', e => {
+    const file = e.target.files[0]; if (file) parseMgrFile(file);
+    e.target.value = '';
+});
+
+async function parseMgrFile(file) {
+    const name = file.name.toLowerCase();
+    let parsed = {};
+    try {
+        if (name.endsWith('.xlsx')) {
+            parsed = await parseXLSX(file);
+        } else {
+            const text = await file.text();
+            parsed = parseCSVOrTXT(text);
+        }
+    } catch (err) {
+        toast('文件解析失败：' + err.message, 'error', 4000);
+        return;
+    }
+
+    const entries = Object.entries(parsed);
+    if (!entries.length) { toast('未解析到有效数据，请检查文件格式', 'error', 3500); return; }
+
+    mgrPendingImport = parsed;
+
+    const newKeys = entries.filter(([k]) => !pendingMap[k]).length;
+    const updKeys = entries.filter(([k]) => pendingMap[k] && pendingMap[k] !== parsed[k]).length;
+    const sameKeys = entries.length - newKeys - updKeys;
+
+    $('uploadResultDetail').innerHTML = `
+        解析到 <b>${entries.length}</b> 条记录 &nbsp;·&nbsp;
+        <span style="color:var(--green-deep);font-weight:800;">新增 ${newKeys} 条</span> &nbsp;
+        <span style="color:var(--amber);font-weight:800;">更新 ${updKeys} 条</span> &nbsp;
+        <span style="color:var(--text3);">无变化 ${sameKeys} 条</span><br>
+        <span style="margin-top:5px;display:block;">点击「保存应用」将合并导入到当前名单。</span>
+    `;
+    $('uploadResult').style.display = 'block';
+    toast(`解析完成：${entries.length} 条，点击「保存应用」生效`, 'success', 3000);
+}
+
+function parseCSVOrTXT(text) {
+    const result = {};
+    const lines = text.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const parts = trimmed.split(/[\t,，]/);
+        if (parts.length >= 2) {
+            const name = parts[0].trim().replace(/\s+/g,'');
+            const manager = parts[1].trim().replace(/\s+/g,'');
+            if (name && manager) result[name] = manager;
+        }
+    }
+    return result;
+}
+
+async function parseXLSX(file) {
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+
+    let sharedStrings = [];
+    const ssFile = zip.file('xl/sharedStrings.xml');
+    if (ssFile) {
+        const ssXml = await ssFile.async('string');
+        const ssDoc = new DOMParser().parseFromString(ssXml, 'text/xml');
+        for (const si of ssDoc.getElementsByTagName('si')) {
+            let val = '';
+            for (const t of si.getElementsByTagName('t')) val += t.textContent;
+            sharedStrings.push(val);
+        }
+    }
+
+    const sheetFile = zip.file('xl/worksheets/sheet1.xml');
+    if (!sheetFile) throw new Error('找不到 sheet1，请确认是标准 XLSX 格式。');
+    const sheetXml = await sheetFile.async('string');
+    const sheetDoc = new DOMParser().parseFromString(sheetXml, 'text/xml');
+
+    const rows = sheetDoc.getElementsByTagName('row');
+    const result = {};
+    let firstRow = true;
+
+    for (const row of rows) {
+        const cells = row.getElementsByTagName('c');
+        const vals = [];
+        for (const cell of cells) {
+            const t = cell.getAttribute('t');
+            const vEl = cell.getElementsByTagName('v')[0];
+            if (!vEl) { vals.push(''); continue; }
+            if (t === 's') {
+                vals.push(sharedStrings[parseInt(vEl.textContent)] || '');
+            } else {
+                vals.push(vEl.textContent || '');
+            }
+        }
+        if (vals.length < 2) continue;
+        const name = (vals[0] || '').trim().replace(/\s+/g,'');
+        const manager = (vals[1] || '').trim().replace(/\s+/g,'');
+        if (!name || !manager) continue;
+        if (firstRow && (name.includes('营服') === false && name.length > 4)) {
+            const looksLikeHeader = ['名称','营服名','姓名','经理','名字'].some(h => name.includes(h) || manager.includes(h));
+            if (looksLikeHeader) { firstRow = false; continue; }
+        }
+        firstRow = false;
+        result[name] = manager;
+    }
+    return result;
+}
+
+function saveMgrChanges() {
+    const newMap = {};
+    for (const row of mgrEditRows) {
+        const n = row.name.trim(), m = row.manager.trim();
+        if (n && m) newMap[n] = m;
+    }
+    if (mgrPendingImport) {
+        Object.assign(newMap, mgrPendingImport);
+    }
+    MANAGER_MAP = newMap;
+    closeMgrModal();
+    toast(`名单已更新！当前共 ${Object.keys(MANAGER_MAP).length} 条记录`, 'success', 3000);
+}
+
+function exportCSV() {
+    const lines = ['营服名称,经理姓名'];
+    const sorted = Object.entries(MANAGER_MAP).sort((a,b) => a[0].localeCompare(b[0],'zh'));
+    sorted.forEach(([n, m]) => lines.push(`${n},${m}`));
+    downloadText(lines.join('\n'), '营服经理名单.csv', 'text/csv;charset=utf-8');
+}
+
+function exportTXT() {
+    const lines = [];
+    const sorted = Object.entries(MANAGER_MAP).sort((a,b) => a[0].localeCompare(b[0],'zh'));
+    sorted.forEach(([n, m]) => lines.push(`${n}\t${m}`));
+    downloadText(lines.join('\n'), '营服经理名单.txt', 'text/plain;charset=utf-8');
+}
+
+function downloadText(content, filename, mime) {
+    const blob = new Blob(['\uFEFF' + content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast(`已导出 ${filename}`, 'success');
+}
+
+function resetToDefault() {
+    if (!confirm('确认重置为内置默认名单？所有自定义修改将丢失。')) return;
+    mgrEditRows = Object.entries(DEFAULT_MANAGER_MAP).map(([name, manager]) => ({ name, manager, isNew: false }));
+    mgrEditRows.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    mgrPendingImport = null;
+    pendingMap = Object.assign({}, DEFAULT_MANAGER_MAP);
+    $('uploadResult').style.display = 'none';
+    renderEditTable();
+    updateMgrCounts();
+    toast('已重置为内置默认名单，点击「保存应用」生效', '', 3000);
+}
+</script>
+</body>
+</html>
